@@ -62,6 +62,11 @@ def sync_sales_order(payload, request_id=None):
 
 def sync_sales_order_items(payload, request_id=None):
     shopify_settings = frappe.get_doc(SETTING_DOCTYPE)
+
+    if not shopify_settings.sync_sales_order_items:
+        create_shopify_log(status="Invalid", message="Sync Sales Order Items is disabled")
+        return
+    
     order = payload
     try:
         shopify_order_id = order["order_edit"]["order_id"]
