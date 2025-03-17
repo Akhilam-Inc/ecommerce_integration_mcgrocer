@@ -7,6 +7,8 @@ from frappe.utils import cint, cstr, flt, get_datetime, getdate, nowdate
 from shopify.collection import PaginatedIterator
 from shopify.resources import Order
 
+from erpnext.controllers.accounts_controller import update_child_qty_rate
+
 from ecommerce_integrations.shopify.connection import temp_shopify_session
 from ecommerce_integrations.shopify.constants import (
     CUSTOMER_ID_FIELD,
@@ -428,6 +430,68 @@ def _fetch_old_orders(from_time, to_time):
             # avoiding rate limits and reducing resource usage.
             yield order.to_dict()
 
+def sort_items_for_sync(active_erpnext_items, active_shopify_items, item_mapping, erpnext_existing_items, erpnext_order_name, delivery_date, shopify_settings):
+    trans_items = []
+
+    # Add or update items from active Shopify items
+    for idx, (product_id, shopify_item) in enumerate(active_shopify_items.items(), start=1):
+        erpnext_item_code = item_mapping.get(product_id)
+        if not erpnext_item_code:
+            continue
+
+        if erpnext_item_code in erpnext_existing_items:
+            trans_items.append({
+                "docname": erpnext_existing_items[erpnext_item_code].name,
+                "name": erpnext_existing_items[erpnext_item_code].name,
+                "item_code": erpnext_item_code,
+                "delivery_date": str(delivery_date),  # Convert to string
+                "conversion_factor": 1,
+                "qty": shopify_item['current_quantity'],
+                "rate": shopify_item['price'],
+                "uom": erpnext_existing_items[erpnext_item_code].uom,
+                "idx": idx
+            })
+        else:
+            item_details = frappe.db.get_value(
+                'Item', erpnext_item_code, ['item_name', 'stock_uom'], as_dict=1
+            )
+            trans_items.append({
+                "doctype": "Sales Order Item",
+                "parent": erpnext_order_name,
+                "parenttype": "Sales Order",
+                "parentfield": "items",
+                "item_code": erpnext_item_code,
+                "item_name": item_details.item_name,
+                "qty": shopify_item['current_quantity'],
+                "warehouse": shopify_settings.warehouse,
+                "rate": shopify_item['price'],
+                "uom": item_details.stock_uom,
+                "stock_uom": item_details.stock_uom,
+                "conversion_factor": 1,
+                "delivery_date": str(delivery_date),  # Convert to string
+                "idx": idx,
+                "__islocal": True
+            })
+
+    # Add existing items that are not in the active Shopify items to be removed
+    for item_code in active_erpnext_items:
+        shopify_product_id = None
+        for pid, erpid in item_mapping.items():
+            if erpid == item_code:
+                shopify_product_id = pid
+                break
+        if not shopify_product_id or shopify_product_id not in active_shopify_items:
+            # Do not include items with qty 0 in the trans_items payload
+            continue
+
+    return trans_items
+
+
+def update_sales_order_items(erpnext_order_name, trans_items):
+    trans_items_json = json.dumps(trans_items)
+    update_child_qty_rate("Sales Order", trans_items_json, erpnext_order_name)
+
+
 def sync_sales_order_items(payload, request_id=None):
     shopify_settings = frappe.get_doc(SETTING_DOCTYPE)
 
@@ -450,17 +514,13 @@ def sync_sales_order_items(payload, request_id=None):
         item_mapping = get_item_mapping(active_shopify_items)
 
         try:
-            erpnext_items_to_delete, erpnext_items_to_update, new_items = sort_items_for_sync(
+            trans_items = sort_items_for_sync(
                 active_erpnext_items, active_shopify_items, item_mapping, erpnext_existing_items, erpnext_order.name, erpnext_order.delivery_date, shopify_settings
             )
 
-            delete_sales_order_items(erpnext_items_to_delete)
-            update_sales_order_items(erpnext_items_to_update)
-            insert_new_sales_order_items(new_items)
+            update_sales_order_items(erpnext_order.name, trans_items)
 
             frappe.db.commit()
-
-            erpnext_order.update_reserved_qty
             create_shopify_log(message=f"Order updated '{shopify_order_id}'", status="Success")
             return True
 
@@ -486,7 +546,7 @@ def get_erpnext_existing_items(erpnext_order_name):
     erpnext_sales_order_items = frappe.get_all(
         "Sales Order Item",
         filters={"parent": erpnext_order_name},
-        fields=["name", "item_code", "qty"]
+        fields=["name", "item_code", "item_name", "qty", "uom", "stock_uom", "idx"]
     )
     erpnext_existing_items = {item.item_code: item for item in erpnext_sales_order_items}
     active_erpnext_items = set(erpnext_existing_items.keys())
@@ -511,69 +571,3 @@ def get_item_mapping(active_shopify_items):
         fields=['integration_item_code', 'erpnext_item_code']
     )
     return {item['integration_item_code']: item['erpnext_item_code'] for item in ecommerce_items}
-
-
-def sort_items_for_sync(active_erpnext_items, active_shopify_items, item_mapping, erpnext_existing_items, erpnext_order_name, delivery_date, shopify_settings):
-    erpnext_items_to_delete = []
-    erpnext_items_to_update = []
-    new_items = []
-
-    for item_code in active_erpnext_items:
-        shopify_product_id = None
-        for pid, erpid in item_mapping.items():
-            if erpid == item_code:
-                shopify_product_id = pid
-                break
-        if not shopify_product_id or shopify_product_id not in active_shopify_items:
-            erpnext_items_to_delete.append(erpnext_existing_items[item_code].name)
-
-    for product_id, shopify_item in active_shopify_items.items():
-        erpnext_item_code = item_mapping.get(product_id)
-        if not erpnext_item_code:
-            continue
-
-        if erpnext_item_code in erpnext_existing_items:
-            if erpnext_existing_items[erpnext_item_code].qty != shopify_item['current_quantity']:
-                erpnext_items_to_update.append(
-                    (erpnext_existing_items[erpnext_item_code].name, shopify_item['current_quantity'])
-                )
-        else:
-            item_details = frappe.db.get_value(
-                'Item', erpnext_item_code, ['item_name', 'stock_uom'], as_dict=1
-            )
-            new_items.append({
-                "doctype": "Sales Order Item",
-                "parent": erpnext_order_name,
-                "parenttype": "Sales Order",
-                "parentfield": "items",
-                "item_code": erpnext_item_code,
-                "item_name": item_details.item_name,
-                "qty": shopify_item['current_quantity'],
-                "warehouse": shopify_settings.warehouse,
-                "rate": shopify_item['price'],
-                "uom": item_details.stock_uom,
-                "stock_uom": item_details.stock_uom,
-                "conversion_factor": 1,
-                "delivery_date": delivery_date,
-            })
-
-    return erpnext_items_to_delete, erpnext_items_to_update, new_items
-
-
-def delete_sales_order_items(erpnext_items_to_delete):
-    for item_name in erpnext_items_to_delete:
-        frappe.db.sql("""
-            DELETE FROM `tabSales Order Item`
-            WHERE name = %s
-        """, (item_name,))
-
-
-def update_sales_order_items(erpnext_items_to_update):
-    for item_name, qty in erpnext_items_to_update:
-        frappe.db.set_value("Sales Order Item", item_name, "qty", qty)
-
-
-def insert_new_sales_order_items(new_items):
-    for new_item_data in new_items:
-        new_item = frappe.get_doc(new_item_data)
-        new_item.insert()
