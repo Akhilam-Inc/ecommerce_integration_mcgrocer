@@ -111,8 +111,7 @@
    "fieldname": "webhooks",
    "fieldtype": "Table",
    "label": "Webhooks",
-   "options": "Shopify Webhooks",
-   "read_only": 1
+   "options": "Shopify Webhooks"
   },
   {
    "fieldname": "customer_settings_section",
@@ -399,7 +398,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-14 21:42:07.900025",
+ "modified": "2025-03-18 06:28:34.644440",
  "modified_by": "Administrator",
  "module": "shopify",
  "name": "Shopify Setting",

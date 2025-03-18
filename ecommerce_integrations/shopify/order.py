@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 import frappe
 from frappe import _
-from frappe.utils import cint, cstr, flt, get_datetime, getdate, nowdate
+from frappe.utils import cint, cstr, flt, get_datetime, getdate, nowdate, add_days
 from shopify.collection import PaginatedIterator
 from shopify.resources import Order
 
@@ -84,10 +84,18 @@ def create_sales_order(shopify_order, setting, company=None):
     so = frappe.db.get_value("Sales Order", {ORDER_ID_FIELD: shopify_order.get("id")}, "name")
 
     if not so:
+        delivery_date = getdate(shopify_order.get("created_at")) or nowdate()
+
+        shipping_title = get_shipping_title(shopify_order)        
+        min_delivery_date = get_shipping_minimum_delivery_days(shipping_title)
+        if shipping_title:
+            if min_delivery_date:
+                delivery_date = add_days(delivery_date, int(min_delivery_date))
+    
         items = get_order_items(
             shopify_order.get("line_items"),
             setting,
-            getdate(shopify_order.get("created_at")),
+            delivery_date, 
             taxes_inclusive=shopify_order.get("taxes_included"),
         )
 
@@ -104,6 +112,7 @@ def create_sales_order(shopify_order, setting, company=None):
             return ""
 
         taxes = get_order_taxes(shopify_order, setting, items)
+        
         so = frappe.get_doc(
             {
                 "doctype": "Sales Order",
@@ -112,7 +121,7 @@ def create_sales_order(shopify_order, setting, company=None):
                 ORDER_NUMBER_FIELD: shopify_order.get("name"),
                 "customer": customer,
                 "transaction_date": getdate(shopify_order.get("created_at")) or nowdate(),
-                "delivery_date": getdate(shopify_order.get("created_at")) or nowdate(),
+                "delivery_date": delivery_date,
                 "company": setting.company,
                 "selling_price_list": get_dummy_price_list(),
                 "ignore_pricing_rule": 1,
@@ -137,6 +146,19 @@ def create_sales_order(shopify_order, setting, company=None):
 
     return so
 
+def get_shipping_minimum_delivery_days(shipping_line_title):     
+    shipping_minimum_delivery_days = frappe.db.get_value(
+        "Shipping Rule",
+        {"name": ("like", f"%{shipping_line_title}%")},  # Correct filter usage
+        "custom_minimum_delivery_days"  # Simplified field selection
+    )
+    return shipping_minimum_delivery_days or None
+
+def get_shipping_title(shopify_order):
+    shopify_shipping_lines  = shopify_order.get("shipping_lines")
+    if  shopify_shipping_lines and isinstance(shopify_shipping_lines, list):
+        return shopify_shipping_lines[0].get("title")
+    return ModuleNotFoundError
 
 def get_order_items(order_items, setting, delivery_date, taxes_inclusive):
     items = []
