@@ -2,72 +2,49 @@
 # See LICENSE
 
 import json
-import unittest
+import frappe
+from frappe.tests.utils import FrappeTestCase
 
-from ecommerce_integrations.shopify.order import get_shipping_title, get_shipping_minimum_delivery_days
-
-
-class TestOrder(unittest.TestCase):
-	
-	def test_sync_with_variants(self):
-		pass
+from ecommerce_integrations.shopify.order import get_shipping_country, get_shipping_title, get_shipping_minimum_delivery_days
 
 
-	def test_get_shipping_title(self):
-		shopify_order = """
+class TestOrder(FrappeTestCase):
+	title = "Royal Mail (Standard Delivery)"
+	country = "India"
+	shopify_order = json.loads("""
 		{
+			"shipping_address": {
+					"country": "India",
+					"country_code": "IN",
+					"province": "Gujarat",
+					"province_code": "GJ"
+			},
 			"shipping_lines": [
 				{
 					"carrier_identifier": "a8d3f2627e998fa88786188bf6b81331",
-					"code": "ups-standard",
-					"current_discounted_price_set": {
-						"presentment_money": {
-							"amount": "38.76",
-							"currency_code": "GBP"
-						},
-						"shop_money": {
-							"amount": "38.76",
-							"currency_code": "GBP"
-						}
-					},
-					"discount_allocations": [],
-					"discounted_price": "38.76",
-					"discounted_price_set": {
-						"presentment_money": {
-							"amount": "38.76",
-							"currency_code": "GBP"
-						},
-						"shop_money": {
-							"amount": "38.76",
-							"currency_code": "GBP"
-						}
-					},
-					"id": 4987747827950,
-					"is_removed": false,
-					"phone": null,
-					"price": "38.76",
-					"price_set": {
-						"presentment_money": {
-							"amount": "38.76",
-							"currency_code": "GBP"
-						},
-						"shop_money": {
-							"amount": "38.76",
-							"currency_code": "GBP"
-						}
-					},
-					"requested_fulfillment_service_id": null,
-					"source": "Custom Shipping Service",
-					"tax_lines": [],
-					"title": "UPS (Standard)"
+					"code": "rm-standard-asia",
+					"title": "Royal Mail (Standard Delivery)"
 				}
 			]
-		}"""
-		shopify_order_str = shopify_order
+		}
+	""")
+	@classmethod # Add a class method for setup
+	def setUpClass(cls):
+			super().setUpClass()
+
+	def test_sync_with_variants(self):
+		pass
+
+	def test_get_shipping_title(self):
+		shopify_order_str = self.shopify_order
 		order = json.loads(shopify_order_str)
-		self.assertEqual(get_shipping_title(order), "UPS (Standard)")
+		self.assertEqual(get_shipping_title(order), self.title)
 	
 	def test_get_shipping_minimum_delivery_days(self):
-		delivery_days = get_shipping_minimum_delivery_days("Standard RM (Oceania)")
+		delivery_days = get_shipping_minimum_delivery_days(self.title, self.country)
 		self.assertEqual(delivery_days, 8)
+	
+	def test_get_shipping_country(self):
+		shipping_country = get_shipping_country(self.shopify_order)
+		self.assertEqual(shipping_country, self.country)
 	

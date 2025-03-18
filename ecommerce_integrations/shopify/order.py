@@ -86,9 +86,12 @@ def create_sales_order(shopify_order, setting, company=None):
     if not so:
         delivery_date = getdate(shopify_order.get("created_at")) or nowdate()
 
-        shipping_title = get_shipping_title(shopify_order)        
-        min_delivery_date = get_shipping_minimum_delivery_days(shipping_title)
-        if shipping_title:
+        shipping_title = get_shipping_title(shopify_order)
+        print(f"{str(nowdate())}: Shipping Title: {shipping_title}")
+        shipping_country = get_shipping_country(shopify_order)
+        if shipping_title and shipping_country:        
+            min_delivery_date = get_shipping_minimum_delivery_days(shipping_title, shipping_country)
+            print(f"{str(nowdate())}: Minimum Delivery Date: {min_delivery_date}")
             if min_delivery_date:
                 delivery_date = add_days(delivery_date, int(min_delivery_date))
     
@@ -146,19 +149,31 @@ def create_sales_order(shopify_order, setting, company=None):
 
     return so
 
-def get_shipping_minimum_delivery_days(shipping_line_title):     
-    shipping_minimum_delivery_days = frappe.db.get_value(
-        "Shipping Rule",
-        {"name": ("like", f"%{shipping_line_title}%")},  # Correct filter usage
-        "custom_minimum_delivery_days"  # Simplified field selection
-    )
-    return shipping_minimum_delivery_days or None
+def get_shipping_minimum_delivery_days(shipping_line_title, shipping_country):     
+    shipping_rule = frappe.db.sql("""
+        SELECT sr.name, sr.custom_minimum_delivery_days
+        FROM `tabShipping Rule` sr
+        JOIN `tabShipping Rule Country` src ON sr.name = src.parent
+        WHERE sr.custom_display_name LIKE %s AND src.country = %s
+        LIMIT 1
+    """, (f"%{shipping_line_title}%", shipping_country), as_dict=True)
+
+    if shipping_rule:
+        return shipping_rule[0].custom_minimum_delivery_days
+
+    return None
 
 def get_shipping_title(shopify_order):
     shopify_shipping_lines  = shopify_order.get("shipping_lines")
     if  shopify_shipping_lines and isinstance(shopify_shipping_lines, list):
         return shopify_shipping_lines[0].get("title")
-    return ModuleNotFoundError
+    return None
+
+def get_shipping_country(shopify_order):
+    shopify_address  = shopify_order.get("shipping_address")
+    if  shopify_address and isinstance(shopify_address, dict):
+        return shopify_address.get("country")
+    return None
 
 def get_order_items(order_items, setting, delivery_date, taxes_inclusive):
     items = []
