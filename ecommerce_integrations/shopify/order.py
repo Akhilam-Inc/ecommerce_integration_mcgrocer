@@ -56,8 +56,12 @@ def sync_sales_order(payload, request_id=None):
 
         setting = frappe.get_doc(SETTING_DOCTYPE)
         create_order(order, setting)
+        recipients = ["admin@example.com"] 
+        frappe.sendmail(recipients=recipients, subject=f"Shopify Order Sync failed: Order {order["id"] or ""}", message=e or "Error")
     except Exception as e:
         create_shopify_log(status="Error", exception=e, rollback=True)
+        recipients = ["admin@example.com"] 
+        frappe.sendmail(recipients=recipients, subject=f"Shopify Order Sync failed: Order {order["id"] or ""}", message=e or "Error")
     else:
         create_shopify_log(status="Success")
 
@@ -73,7 +77,7 @@ def create_order(order, setting, company=None):
 
         if order.get("fulfillments"):
             create_delivery_note(order, setting, so)
-
+    
 
 def create_sales_order(shopify_order, setting, company=None):
     customer = setting.default_customer
@@ -111,7 +115,7 @@ def create_sales_order(shopify_order, setting, company=None):
             message += "\n" + ", ".join(product_not_exists)
 
             create_shopify_log(status="Error", exception=message, rollback=True)
-
+            
             return ""
 
         taxes = get_order_taxes(shopify_order, setting, items)
@@ -429,7 +433,7 @@ def cancel_order(payload, request_id=None):
 
     except Exception as e:
         create_shopify_log(status="Error", exception=e)
-    else:
+        else:
         create_shopify_log(status="Success")
 
 
