@@ -55,13 +55,34 @@ def sync_sales_order(payload, request_id=None):
         create_items_if_not_exist(order)
 
         setting = frappe.get_doc(SETTING_DOCTYPE)
-        create_order(order, setting)
-        recipients = ["admin@example.com"] 
-        frappe.sendmail(recipients=recipients, subject=f"Shopify Order Sync failed: Order {order["id"] or ""}", message=e or "Error")
+        new_so_doc = create_order(order, setting)
+        
+        # Get customer email from the new Sales Order's first address
+        customer_email = frappe.db.get_value("Address", {"name": new_so_doc.customer_address}, "email_id")
+        if customer_email:
+            recipients = [customer_email]
+            frappe.sendmail(
+                recipients=recipients,
+                subject=f"Your Order is being processed: [{order['id']}]",
+                message=f"Shopify Order ({order['id']}) is being processed.",
+            )
     except Exception as e:
-        create_shopify_log(status="Error", exception=e, rollback=True)
-        recipients = ["admin@example.com"] 
-        frappe.sendmail(recipients=recipients, subject=f"Shopify Order Sync failed: Order {order["id"] or ""}", message=e or "Error")
+        new_log = create_shopify_log(status="Error", exception=e, rollback=True)
+        
+        # Get all sales managers' emails
+        sales_managers = frappe.get_all("User", filters={"role_profile_name": "Sales Manager"}, fields=["email"])
+        recipients = [manager.email for manager in sales_managers]
+        
+        if len(recipients) > 0:
+            frappe.sendmail(
+            recipients=recipients,
+            subject=f"Shopify Order Sync failed: Order {order['id'] or ''}",
+            message=(
+                "Shopify Order could not be synchronized due to an error.\n"
+                "Check ecommerce intergration log for more details "
+                f"<a href='{frappe.utils.get_url()}/app/ecommerce-integration-log/{new_log.name}'>here</a>"
+            ),
+        )
     else:
         create_shopify_log(status="Success")
 
@@ -77,6 +98,7 @@ def create_order(order, setting, company=None):
 
         if order.get("fulfillments"):
             create_delivery_note(order, setting, so)
+    return so
     
 
 def create_sales_order(shopify_order, setting, company=None):
@@ -433,7 +455,7 @@ def cancel_order(payload, request_id=None):
 
     except Exception as e:
         create_shopify_log(status="Error", exception=e)
-        else:
+    else:
         create_shopify_log(status="Success")
 
 
