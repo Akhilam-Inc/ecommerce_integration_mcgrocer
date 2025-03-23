@@ -31,7 +31,7 @@ DEFAULT_TAX_FIELDS = {
     "shipping": "default_shipping_charges_account",
 }
 
-
+shopify_setting = frappe.get_doc(SETTING_DOCTYPE)
 def sync_sales_order(payload, request_id=None):
     order = payload
     frappe.set_user("Administrator")
@@ -57,15 +57,16 @@ def sync_sales_order(payload, request_id=None):
         setting = frappe.get_doc(SETTING_DOCTYPE)
         new_so_doc = create_order(order, setting)
         
-        # Get customer email from the new Sales Order's first address
-        customer_email = frappe.db.get_value("Address", {"name": new_so_doc.customer_address}, "email_id")
-        if customer_email:
-            recipients = [customer_email]
-            frappe.sendmail(
-                recipients=recipients,
-                subject=f"Your Order is being processed: [{order['id']}]",
-                message=f"Shopify Order ({order['id']}) is being processed.",
-            )
+        if shopify_setting.send_success_email:
+            # Get customer email from the new Sales Order's first address
+            customer_email = frappe.db.get_value("Address", {"name": new_so_doc.customer_address}, "email_id")
+            if customer_email:
+                recipients = [customer_email]
+                frappe.sendmail(
+                    recipients=recipients,
+                    subject=f"Your Order is being processed: [{order['id']}]",
+                    message=f"Shopify Order ({order['id']}) is being processed.",
+                )
     except Exception as e:
         new_log = create_shopify_log(status="Error", exception=e, rollback=True)
         
@@ -73,16 +74,17 @@ def sync_sales_order(payload, request_id=None):
         sales_managers = frappe.get_all("User", filters={"role_profile_name": "Sales Manager"}, fields=["email"])
         recipients = [manager.email for manager in sales_managers]
         
-        if len(recipients) > 0:
-            frappe.sendmail(
-            recipients=recipients,
-            subject=f"Shopify Order Sync failed: Order {order['id'] or ''}",
-            message=(
-                "Shopify Order could not be synchronized due to an error.\n"
-                "Check ecommerce intergration log for more details "
-                f"<a href='{frappe.utils.get_url()}/app/ecommerce-integration-log/{new_log.name}'>here</a>"
-            ),
-        )
+        if shopify_setting.send_fail_email:
+            if len(recipients) > 0:
+                frappe.sendmail(
+                recipients=recipients,
+                subject=f"Shopify Order Sync failed: Order {order['id'] or ''}",
+                message=(
+                    "Shopify Order could not be synchronized due to an error.\n"
+                    "Check ecommerce intergration log for more details "
+                    f"<a href='{frappe.utils.get_url()}/app/ecommerce-integration-log/{new_log.name}'>here</a>"
+                ),
+            )
     else:
         create_shopify_log(status="Success")
 
@@ -634,3 +636,34 @@ def get_item_mapping(active_shopify_items):
         fields=['integration_item_code', 'erpnext_item_code']
     )
     return {item['integration_item_code']: item['erpnext_item_code'] for item in ecommerce_items}
+
+
+def update_shopify_fulfillment(delivery_note):
+    """Update Shopify order fulfillment based on ERPNext delivery note."""
+    shopify_settings = frappe.get_doc(SETTING_DOCTYPE)
+    shopify_order_id = frappe.db.get_value("Sales Order", delivery_note.sales_order, ORDER_ID_FIELD)
+
+    if not shopify_order_id:
+        frappe.throw(_("Shopify Order ID not found for Sales Order {0}").format(delivery_note.sales_order))
+
+    shopify_manager = ShopifyOrderManager(shopify_settings.shopify_url, shopify_settings.get_password('password'))
+    fulfillment_data = {
+        "fulfillment": {
+            "location_id": shopify_settings.shopify_location_id,
+            "tracking_number": delivery_note.tracking_number,
+            "tracking_urls": [delivery_note.tracking_url],
+            "line_items": [
+                {
+                    "id": frappe.db.get_value("Sales Order Item", {"parent": delivery_note.sales_order, "item_code": item.item_code}, "shopify_line_item_id"),
+                    "quantity": item.qty
+                }
+                for item in delivery_note.items
+            ]
+        }
+    }
+
+    try:
+        shopify_manager.create_fulfillment(shopify_order_id, fulfillment_data)
+        create_shopify_log(status="Success", message=f"Fulfillment updated for Shopify Order {shopify_order_id}")
+    except Exception as e:
+        create_shopify_log(status="Error", exception=e, message=f"Failed to update fulfillment for Shopify Order {shopify_order_id}")

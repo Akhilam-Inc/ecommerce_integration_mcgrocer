@@ -16,6 +16,7 @@
   "webhooks",
   "customer_settings_section",
   "default_customer",
+  "send_success_email",
   "column_break_14",
   "customer_group",
   "company_dependent_settings_section",
@@ -34,6 +35,8 @@
   "add_shipping_as_item",
   "consolidate_taxes",
   "sync_edited_orders",
+  "sync_erpnext_fulfillment",
+  "send_fail_email",
   "section_break_22",
   "html_16",
   "taxes",
@@ -393,12 +396,30 @@
    "fieldname": "sync_edited_orders",
    "fieldtype": "Check",
    "label": "Sync items when an Order is edited"
+  },
+  {
+   "default": "0",
+   "fieldname": "send_success_email",
+   "fieldtype": "Check",
+   "label": "Send email on order Sync"
+  },
+  {
+   "default": "0",
+   "fieldname": "send_fail_email",
+   "fieldtype": "Check",
+   "label": "Send Email to Sales Managers when Order Sync Fails"
+  },
+  {
+   "default": "0",
+   "fieldname": "sync_erpnext_fulfillment",
+   "fieldtype": "Check",
+   "label": "Sync ERPNext fulfillment with Shopify"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-18 06:28:34.644440",
+ "modified": "2025-03-21 13:41:44.937109",
  "modified_by": "Administrator",
  "module": "shopify",
  "name": "Shopify Setting",
