@@ -1,5 +1,6 @@
 # Copyright (c) 2021, Frappe and contributors
 # For license information, please see LICENSE
+from datetime import datetime
 from typing import List
 
 import frappe
@@ -101,3 +102,9 @@ def _create_ecommerce_items(items: List[_dict]) -> None:
 			}
 		)
 		ecommerce_item.save()
+
+def json_serializer(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {obj.__class__.__name__} not serializable")

@@ -12,7 +12,7 @@ from ecommerce_integrations.shopify.constants import (
     SETTING_DOCTYPE,
 )
 from ecommerce_integrations.shopify.order import get_sales_order
-from ecommerce_integrations.shopify.utils import create_shopify_log
+from ecommerce_integrations.shopify.utils import create_shopify_log, json_serializer
 import shopify
 
 
@@ -98,7 +98,7 @@ def prepare_shopify_fulfillment(delivery_note_doc):
     try:
         if delivery_note_doc.shopify_order_id:
             create_shopify_fulfillment(delivery_note_doc, setting)
-            create_shopify_log(status="Success", message=f"Order [{delivery_note_doc.shopify_order_id}]  has been marked as fulfilled in Shopify.", request_data=json.dumps(delivery_note_doc.as_dict()))
+            create_shopify_log(status="Success", message=f"Delivery note [{delivery_note_doc.name}] has fulfilled Shopify order [{delivery_note_doc.shopify_order_id}].")
             frappe.msgprint(f"Order [{delivery_note_doc.shopify_order_id}] has been marked as fulfilled in Shopify.")
         else:
             frappe.throw("The delivery note does not have a Shopify order ID.")
@@ -127,41 +127,36 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
     shopify.ShopifyResource.activate_session(session)
 
     try:
-        fulfillments_order = get_order_fullfilments_orders(delivery_note_doc.shopify_order_id, setting)
-        fulfillment_order = fulfillments_order['fulfillment_orders'][0]
-
-        if not fulfillments_order['fulfillment_orders']:
+        fulfillment_orders = get_order_fullfilments_orders(delivery_note_doc.shopify_order_id, setting)
+        if not fulfillment_orders['fulfillment_orders']:
             frappe.throw(f"No fulfillment orders found for order {delivery_note_doc.shopify_order_id}")
+        fulfillment_order = fulfillment_orders['fulfillment_orders'][len(fulfillment_orders['fulfillment_orders']) - 1]
         
-        fulfillment_url = f"https://{setting.shopify_url}/admin/api/2025-01/fulfillments.json"
+        # Filter fulfillment items to match those in the delivery note
+        delivery_items = get_fulfillment_items_from_dn(delivery_note_doc.items)
+        items_to_fulfill = []
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "X-Shopify-Access-Token": setting.get_password("password")
-        }
-
-        # shiiping_companny = frappe.get_value("Shipping Rule", {"custom_display_name": delivery_note_doc.shipping_rule}, "shipping_company")
-        payload = {
-            
-            "fulfillment":
-            {
-                "message":"Fulfillment created from ERPNext",
-                "line_items_by_fulfillment_order":
-                [
-                    {"fulfillment_order_id":fulfillment_order['id']}
-                ]
-            }
-        }
-
-        import requests
-        response = requests.post(fulfillment_url, json=payload, headers=headers)
-
+        for line_item in fulfillment_order['line_items']:
+            for item in delivery_items:
+                if str(line_item['variant_id']) == str(item['variant_id']):
+                    items_to_fulfill.append({
+                        "id": line_item['id'],
+                        "quantity": line_item['quantity'],
+                    })
+        # frappe.throw(f"{delivery_items} \nItems to fulfill: {fulfillment_orders}")
+        # frappe.throw(f"To Fulfill: {items_to_fulfill}")
+        # response = create_fulfillment_for_fulfillment_order(fulfillment_order['id'], setting)
+        response = create_fulfillment_for_dn_items(fulfillment_order['id'], items_to_fulfill, setting)
+       
         if response.status_code in (200, 201):
             fulfillment_data = response.json()["fulfillment"]
-            fulfillment_id = fulfillment_data["id"]
+            fulfillment_id = str(fulfillment_data["id"])
             delivery_note_doc.db_set(FULLFILLMENT_ID_FIELD, fulfillment_id)
             delivery_note_doc.add_comment(text=f"Fulfillment created in Shopify: {fulfillment_id}")
+            create_shopify_log(status="Success", message=f"Fulfillment created in Shopify: {fulfillment_id}", request_data=json.dumps(response.json() or {}))
+        elif response.status_code == 422:
+            create_shopify_log(status="Error", message=f"Fulfillment creation failed. The fulfillment order is already fulfilled in Shopify.", request_data=json.dumps(response.json() or {}), response_data=response.text)
+            return
         else:
             # Safely get response content without assuming it's JSON
             response_content = None
@@ -184,26 +179,79 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
                 rollback=True
             )
             
-            frappe.throw(f"HTTP {response.status_code}: {response.reason} - {response_content}\nHeaders: {dict(response_headers)}")
+            frappe.throw(f"Failed to create fulfillment in Shopify: {response.status_code} - {response.reason}")
     except Exception as e:
-        create_shopify_log(status="Error", exception=e, rollback=True)
         frappe.throw(str(e))
-    finally:
-        shopify.ShopifyResource.clear_session()
 
+def create_fulfillment_for_fulfillment_order(fulfillment_order_id, setting):
+    fulfillment_url = f"https://{setting.shopify_url}/admin/api/2025-01/fulfillments.json"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Shopify-Access-Token": setting.get_password("password")
+    }
+
+    # shiiping_companny = frappe.get_value("Shipping Rule", {"custom_display_name": delivery_note_doc.shipping_rule}, "shipping_company")
+    payload = {
+        
+        "fulfillment":
+        {
+            "message":"Fulfillment created from ERPNext",
+            "line_items_by_fulfillment_order":
+            [
+                {"fulfillment_order_id":fulfillment_order_id}
+            ]
+        }
+    }
+
+    import requests
+    return requests.post(fulfillment_url, json=payload, headers=headers)
+
+def cancel_fulilment(delivery_note_doc, setting):
+    if not cint(setting.sync_erpnext_fulfillment):
+        frappe.throw(f"Syncing of ERPNext delivery note as fulfillment is disabled in Shopify settings.")
+    
+    
+
+def create_fulfillment_for_dn_items(fulfillment_order_id, line_items, setting):
+    fulfillment_url = f"https://{setting.shopify_url}/admin/api/2025-01/fulfillments.json"
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Shopify-Access-Token": setting.get_password("password")
+    }
+    payload = {
+        "fulfillment": {
+            "message":"Fulfillment created from ERPNext",
+             "line_items_by_fulfillment_order": [
+                {
+                    "fulfillment_order_id":fulfillment_order_id,
+                    "fulfillment_order_line_items": line_items,
+                }
+            ]
+        }
+    }
+
+    import requests
+    return requests.post(fulfillment_url, json=payload, headers=headers)
 
 def get_fulfillment_items_from_dn(dn_items):
-    # local import to avoid circular imports
-    from ecommerce_integrations.shopify.product import get_shopify_item_id
 
     fulfillment_items = []
 
     for dn_item in dn_items:
-        shopify_item_id = get_shopify_item_id(dn_item.item_code)
+        shopify_item_id, variant_id = get_shopify_item_and_variant_id(dn_item.item_code)
         if shopify_item_id:
             fulfillment_items.append({
                 "id": shopify_item_id,
+                "variant_id": variant_id,
                 "quantity": dn_item.qty
             })
 
     return fulfillment_items
+
+def get_shopify_item_and_variant_id(erpnext_item_code):
+    return frappe.db.get_value("Ecommerce Item", 
+                                          {"integration": "Shopify", "erpnext_item_code": erpnext_item_code}, 
+                                          ["integration_item_code", "variant_id"])

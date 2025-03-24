@@ -131,7 +131,7 @@ doc_events = {
 	},
   "Delivery Note": {
 		"on_submit": "ecommerce_integrations.shopify.delivery_note.sync_delivery_note_as_shopify_fulfilment",
-		"on_cancel": "ecommerce_integrations.shopify.delivery_note.sync_delivery_note_as_shopify_fulfilment",
+		"on_cancel": "ecommerce_integrations.shopify.delivery_note.sync_delivery_note_as_shopify_fulfilment",	
 	},
 }
 
