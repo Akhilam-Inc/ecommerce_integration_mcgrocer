@@ -99,7 +99,7 @@ def prepare_shopify_fulfillment(delivery_note_doc):
         if delivery_note_doc.shopify_order_id:
             create_shopify_fulfillment(delivery_note_doc, setting)
             create_shopify_log(status="Success", message=f"Delivery note [{delivery_note_doc.name}] has fulfilled Shopify order [{delivery_note_doc.shopify_order_id}].")
-            frappe.msgprint(f"Order [{delivery_note_doc.shopify_order_id}] has been marked as fulfilled in Shopify.")
+            frappe.msgprint(f"Order [{delivery_note_doc.shopify_order_id}] has been marked as fulfilled in Shopify.", show_alert=True)
         else:
             frappe.throw("The delivery note does not have a Shopify order ID.")
     except Exception as e:
@@ -141,7 +141,7 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
                 if str(line_item['variant_id']) == str(item['variant_id']):
                     items_to_fulfill.append({
                         "id": line_item['id'],
-                        "quantity": line_item['quantity'],
+                        "quantity": int(item['quantity']),
                     })
         # frappe.throw(f"{delivery_items} \nItems to fulfill: {fulfillment_orders}")
         # frappe.throw(f"To Fulfill: {items_to_fulfill}")
