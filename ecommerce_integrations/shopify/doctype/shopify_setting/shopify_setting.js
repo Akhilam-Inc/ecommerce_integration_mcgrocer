@@ -105,7 +105,7 @@ frappe.ui.form.on("Shopify Setting", {
 
     sync_delivery_note: function (frm) {
         if (frm.doc.sync_delivery_note ==  1) {
-            frm.set_value("sync_erpnext_fulfilment", 0);
+            frm.set_value("sync_erpnext_fulfillment", 0);
         }
     }
 });
