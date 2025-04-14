@@ -1,21 +1,23 @@
 import requests
 import frappe
+import json
 
 from ecommerce_integrations.shopify.utils import create_shopify_log
 
 @frappe.whitelist()
 def delete_items_from_shopify(erpnext_item_names):
+  erpnext_item_names = json.loads(erpnext_item_names)
   shopify_item_ids = frappe.get_all(
     "Ecommerce Item",
     filters={
       "erpnext_item_code": ["in", erpnext_item_names],
-      "integration": "Shopify",
+      "integration": "shopify",
       },
     fields=["integration_item_code"],
   )
   
   # delete shopify items based on shopify item ids
-  setting = frappe.get_doc("Shopify Settings")
+  setting = frappe.get_doc("Shopify Setting")
   shopify_url = setting.shopify_url
   
   headers = {
