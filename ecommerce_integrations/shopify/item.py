@@ -35,6 +35,7 @@ def delete_items_from_shopify(erpnext_item_names):
       create_shopify_log(message=f"Deleted Item [{item_id}]", status="Success", response_data=response.json())
       erpnext_item_name = frappe.get_value("Ecommerce Item", {"integration_item_code": item_id}, "erpnext_item_code")
       frappe.db.set_value("Item", erpnext_item_name, "deleted_from_shopify", 1)
+      frappe.msgprint(f"Deleted Item [{item_id}] from Shopify")
             
     else:
       create_shopify_log(message=f"Failed to delete item [{item_id}]", status="Information", response_data=response.json())
