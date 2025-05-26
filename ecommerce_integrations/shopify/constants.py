@@ -9,21 +9,26 @@ OLD_SETTINGS_DOCTYPE = "Shopify Settings"
 API_VERSION = "2024-01"
 
 WEBHOOK_EVENTS = [
-	"orders/create",
-  "orders/edited",
-	"orders/paid",
-	"orders/fulfilled",
-	"orders/cancelled",
-	"orders/partially_fulfilled",
+    "orders/create",
+    "orders/edited",
+    "orders/paid",
+    "orders/fulfilled",
+    "orders/cancelled",
+    "orders/partially_fulfilled",
+    "orders/updated",
+    "returns/update",
+
 ]
 
 EVENT_MAPPER = {
-	"orders/create": "ecommerce_integrations.shopify.order.sync_sales_order",
-  "orders/edited": "ecommerce_integrations.shopify.order.sync_sales_order_items",
-	"orders/paid": "ecommerce_integrations.shopify.invoice.prepare_sales_invoice",
-	"orders/fulfilled": "ecommerce_integrations.shopify.fulfillment.prepare_delivery_note",
-	"orders/cancelled": "ecommerce_integrations.shopify.order.cancel_order",
-	"orders/partially_fulfilled": "ecommerce_integrations.shopify.fulfillment.prepare_delivery_note",
+    "orders/create": "ecommerce_integrations.shopify.order.sync_sales_order",
+    "orders/edited": "ecommerce_integrations.shopify.order.sync_sales_order_items",
+    "orders/paid": "ecommerce_integrations.shopify.invoice.prepare_sales_invoice",
+    "orders/fulfilled": "ecommerce_integrations.shopify.fulfillment.prepare_delivery_note",
+    "orders/cancelled": "ecommerce_integrations.shopify.order.cancel_order",
+    "orders/partially_fulfilled": "ecommerce_integrations.shopify.fulfillment.prepare_delivery_note",
+    "orders/updated": "ecommerce_integrations.shopify.returns.handle_shopify_return",
+    "returns/update": "ecommerce_integrations.shopify.returns.handle_shopify_return",
 }
 
 SHOPIFY_VARIANTS_ATTR_LIST = ["option1", "option2", "option3"]
@@ -41,4 +46,5 @@ ORDER_ITEM_DISCOUNT_FIELD = "shopify_item_discount"
 ITEM_SELLING_RATE_FIELD = "shopify_selling_rate"
 
 # ERPNext already defines the default UOMs from Shopify but names are different
-WEIGHT_TO_ERPNEXT_UOM_MAP = {"kg": "Kg", "g": "Gram", "oz": "Ounce", "lb": "Pound"}
+WEIGHT_TO_ERPNEXT_UOM_MAP = {"kg": "Kg",
+                             "g": "Gram", "oz": "Ounce", "lb": "Pound"}

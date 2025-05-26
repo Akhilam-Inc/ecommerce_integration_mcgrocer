@@ -498,6 +498,9 @@ def map_erpnext_item_to_shopify(shopify_product: Product, erpnext_item):
 	shopify_product.title = erpnext_item.item_name
 	shopify_product.body_html = erpnext_item.description
 	shopify_product.product_type = erpnext_item.item_group
+	if erpnext_item.image:
+		# Shopify API v2023-07+ uses `images` array for multiple images
+		shopify_product.images = [{"src": erpnext_item.image}]
 
 	if erpnext_item.weight_uom in WEIGHT_TO_ERPNEXT_UOM_MAP.values():
 		# reverse lookup for key
