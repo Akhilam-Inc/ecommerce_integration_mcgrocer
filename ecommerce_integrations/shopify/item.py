@@ -91,12 +91,18 @@ def import_production_items():
 
     for product in products:
         # Remove variants without SKU
-        if "variants" in product:
-            product["variants"] = [v for v in product["variants"] if v.get("sku")]
+        if "variants" in product and isinstance(product["variants"], list):
+            product["variants"] = [v for v in product["variants"] if v is not None and v.get("sku")]
+        else:
+            product["variants"] = []
 
         shopify_product = create_shopify_product(product)
-        product["id"] = shopify_product.get("id") if shopify_product else None
-        product["variants"][0]["id"] = shopify_product["variants"][0].get("id") if shopify_product else None
+        if shopify_product and shopify_product.get("variants") and len(shopify_product["variants"]) > 0:
+            product["id"] = shopify_product.get("id")
+            if product["variants"] and len(product["variants"]) > 0:
+                product["variants"][0]["id"] = shopify_product["variants"][0].get("id")
+        else:
+            product["id"] = shopify_product.get("id") if shopify_product else None
 
         if shopify_product:
             print(f"Uploaded to Shopify: {product['title']}")
@@ -160,7 +166,6 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
 
         # Barcode and barcode type
         barcode = variant.get("barcode")
-        print(barcode)
         barcode_type = None
         if barcode:
             blen = len(str(barcode))
@@ -195,7 +200,7 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
             "item_code": item_code,
             "item_name": product.get("title"),
             "item_group": item_group,
-            "description": product.get("body_html", ""),
+            "description": product.get("description", ""),
             "stock_uom": "Nos",
             "disabled": 0,
             "image": main_image,
@@ -207,6 +212,8 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
             "tags": ", ".join(tags) if tags else None,
             "custom_last_sync_time": last_scrap_update,
             "opening_stock": variant.get("stock", 0),
+            "valuation_rate": variant.get("cost_price", 0),
+            "shopify_selling_rate": variant.get("sale_price", 0)
         }
         # Remove None values
         item_fields = {k: v for k, v in item_fields.items() if v is not None}
@@ -243,21 +250,21 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
                 pass
 
         # Create or update Ecommerce Item for this variant
-        # ecommerce_fields = {
-        #     "doctype": "Ecommerce Item",
-        #     "erpnext_item_code": item_doc.item_code,
-        #     "integration": integration,
-        #     "integration_item_code": shopify_product_id,
-        #     "variant_id": variant.get("id"),
-        #     "sku": sku,
-        #     "item_name": product.get("title"),
-        #     "published": 1,
-        # }
-        # try:
-        #     ecommerce_item = frappe.get_doc(ecommerce_fields)
-        #     ecommerce_item.insert(ignore_permissions=True, ignore_if_duplicate=True)
-        # except frappe.DuplicateEntryError:
-        #     pass
+        ecommerce_fields = {
+            "doctype": "Ecommerce Item",
+            "erpnext_item_code": item_doc.item_code,
+            "integration": integration,
+            "integration_item_code": shopify_product_id,
+            "variant_id": variant.get("id"),
+            "sku": sku,
+            "item_name": product.get("title"),
+            "published": 1,
+        }
+        try:
+            ecommerce_item = frappe.get_doc(ecommerce_fields)
+            ecommerce_item.insert(ignore_permissions=True, ignore_if_duplicate=True)
+        except frappe.DuplicateEntryError:
+            pass
 
         if barcode:
             barcode_row = {
@@ -293,3 +300,4 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
                 frappe.get_doc(item_price_fields).insert(ignore_permissions=True)
             except Exception as e:
                 frappe.log_error(f"Failed to create Item Price for {item_doc.item_code}: {e}")
+
