@@ -590,6 +590,8 @@ def sync_sales_order_items(payload, request_id=None):
             return True
 
         finally:
+            from mcgrocer_customization.mcgrocer_customization.controllers.sales_order import update_sales_order_pick_status
+            update_sales_order_pick_status(erpnext_order)
             frappe.set_user('Guest')
 
     except (KeyError) as e:
