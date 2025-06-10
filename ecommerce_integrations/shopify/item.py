@@ -55,16 +55,17 @@ def create_shopify_product(product):
         "Accept": "application/json",
         "X-Shopify-Access-Token": setting.get_password("password")
     }
+    import random
     payload = {
         "product": {
             "title": product["title"],
             "body_html": product.get("description", ""),
             "vendor": product.get("vendor", ""),
             "status": product.get("status", "active"),
-            "images": [{"src": img["image_url"]} for img in product.get("images", [])],
+            "images": [{"src": img["image_url"]} for img in (product.get("images") or [])],
             "variants": [
                 {
-                    "title": v.get("title", "Default Title"),
+                    "title": f"{v.get('title')} {random.randint(0, 500)}" or f"{product.get('title', '')} Variant",
                     "sku": v.get("sku", ""),
                     "price": v.get("sale_price", 0),
                     "weight": v.get("weight", 0),
@@ -85,6 +86,7 @@ def create_shopify_product(product):
         return None
 
 def import_production_items():
+    # bench execute ecommerce_integrations.shopify.item.import_production_items
     json_path = os.path.join(frappe.get_site_path("private", "files"), "products.json")
     with open(json_path) as f:
         products = json.load(f)
@@ -95,6 +97,20 @@ def import_production_items():
             product["variants"] = [v for v in product["variants"] if v is not None and v.get("sku")]
         else:
             product["variants"] = []
+
+        # --- Check if any SKU already exists in Ecommerce Item ---
+        skip_product = False
+        for variant in product["variants"]:
+            sku = variant.get("sku")
+            if not sku:
+                continue
+            exists = frappe.db.exists("Ecommerce Item", {"sku": sku, "integration": "shopify"})
+            if exists:
+                print(f"SKU {sku} already exists in Ecommerce Item. Skipping product: {product.get('title')}")
+                skip_product = True
+                break
+        if skip_product:
+            continue
 
         shopify_product = create_shopify_product(product)
         if shopify_product and shopify_product.get("variants") and len(shopify_product["variants"]) > 0:
@@ -109,6 +125,7 @@ def import_production_items():
             try:
                 create_item_and_ecommerce_item(product, integration="shopify")
                 print(f"Created/Updated ERPNext Item and Ecommerce Item for: {product['title']}")
+                frappe.db.commit()
             except Exception as e:
                 print(f"Failed to create ERPNext Item for {product['title']}: {e}")
         else:
@@ -141,6 +158,20 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
             pass
     
 
+    # Ensure item_group exists, otherwise create it as a child of 'All Item Groups'
+    if item_group and item_group != "All Item Groups":
+        if not frappe.db.exists("Item Group", item_group):
+            try:
+                item_group_doc = frappe.get_doc({
+                    "doctype": "Item Group",
+                    "item_group_name": item_group,
+                    "parent_item_group": "All Item Groups",
+                    "is_group": 0
+                })
+                item_group_doc.insert(ignore_permissions=True)
+            except Exception as e:
+                frappe.log_error(f"Failed to create Item Group {item_group}: {e}")
+
     # Prepare main image
     main_image = product.get("product_image_url")
     # Prepare tags
@@ -153,7 +184,12 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
         if not sku:
             continue
 
-        # Dimensions
+        # --- Check if SKU already exists in Ecommerce Item before creating Item ---
+        exists = frappe.db.exists("Ecommerce Item", {"sku": sku, "integration": integration})
+        if exists:
+            print(f"SKU {sku} already exists in Ecommerce Item. Skipping item creation for this variant.")
+            continue
+
         length = width = height = None
         if variant.get("dimensions"):
             try:
@@ -163,40 +199,13 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
                 height = dims.get("height")
             except Exception:
                 pass
-
-        # Barcode and barcode type
-        barcode = variant.get("barcode")
-        barcode_type = None
-        if barcode:
-            blen = len(str(barcode))
-            # Simple mapping based on length
-            barcode_type_map = {
-                8: "EAN-8",
-                12: "EAN-12",
-                13: "EAN",
-                10: "ISBN-10",
-                14: "GTIN"
-            }
-            barcode_type = barcode_type_map.get(blen, "EAN")
+            
         last_scrap_update = product.get("last_scrap_update")
+
         item_code = sku
-        
-        # Ensure item_group exists, otherwise create it as a child of 'All Item Groups'
-        if item_group and item_group != "All Item Groups":
-            if not frappe.db.exists("Item Group", item_group):
-                try:
-                    item_group_doc = frappe.get_doc({
-                        "doctype": "Item Group",
-                        "item_group_name": item_group,
-                        "parent_item_group": "All Item Groups",
-                        "is_group": 0
-                    })
-                    item_group_doc.insert(ignore_permissions=True)
-                except Exception as e:
-                    frappe.log_error(f"Failed to create Item Group {item_group}: {e}")
-                    
         item_fields = {
             "doctype": "Item",
+            "name": item_code,
             "item_code": item_code,
             "item_name": product.get("title"),
             "item_group": item_group,
@@ -215,15 +224,18 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
             "valuation_rate": variant.get("cost_price", 0),
             "shopify_selling_rate": variant.get("sale_price", 0)
         }
+        
         # Remove None values
         item_fields = {k: v for k, v in item_fields.items() if v is not None}
 
         try:
             item_doc = frappe.get_doc(item_fields)
+            item_doc.flags.from_integration = True
             item_doc.insert(ignore_permissions=True, ignore_if_duplicate=True)
         except frappe.DuplicateEntryError:
             item_doc = frappe.get_doc("Item", item_code)
 
+        # return
         # Create or update Item Supplier
         supplier = product.get("vendor")
         vendor_url = product.get("vendor_url")
@@ -266,6 +278,9 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
         except frappe.DuplicateEntryError:
             pass
 
+        # Barcode and barcode type
+        barcode = variant.get("barcode")
+        barcode_type = None
         if barcode:
             barcode_row = {
                 "barcode": barcode,
@@ -278,26 +293,26 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
                 item_doc.append("barcodes", barcode_row)
                 item_doc.save(ignore_permissions=True)
 
-    sale_price = variant.get("sale_price")
-    if sale_price is not None:
-        currency = frappe.db.get_single_value("Global Defaults", "default_currency") or "USD"
-        item_price_fields = {
-            "doctype": "Item Price",
-            "item_code": item_doc.item_code,
-            "price_list": "Standard Selling",
-            "price_list_rate": sale_price,
-            "selling": 1,
-            "currency": currency,
-        }
-        
-        # Avoid duplicate Item Price
-        exists = frappe.db.exists("Item Price", {
-            "item_code": item_doc.item_code,
-            "price_list": "Standard Selling"
-        })
-        if not exists:
-            try:
-                frappe.get_doc(item_price_fields).insert(ignore_permissions=True)
-            except Exception as e:
-                frappe.log_error(f"Failed to create Item Price for {item_doc.item_code}: {e}")
+        # Create Item Price for this variant
+        sale_price = variant.get("sale_price")
+        if sale_price is not None:
+            currency = frappe.db.get_single_value("Global Defaults", "default_currency") or "USD"
+            item_price_fields = {
+                "doctype": "Item Price",
+                "item_code": item_doc.item_code,
+                "price_list": "Standard Selling",
+                "price_list_rate": sale_price,
+                "selling": 1,
+                "currency": currency,
+            }
+            # Avoid duplicate Item Price
+            exists = frappe.db.exists("Item Price", {
+                "item_code": item_doc.item_code,
+                "price_list": "Standard Selling"
+            })
+            if not exists:
+                try:
+                    frappe.get_doc(item_price_fields).insert(ignore_permissions=True)
+                except Exception as e:
+                    frappe.log_error(f"Failed to create Item Price for {item_doc.item_code}: {e}")
 

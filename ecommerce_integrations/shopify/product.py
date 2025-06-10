@@ -142,7 +142,7 @@ class ShopifyProduct:
 		if not _match_sku_and_link_item(
 			item_dict, integration_item_code, variant_id, variant_of=variant_of, has_variant=has_variant
 		):
-			ecommerce_item.create_ecommerce_item(
+			ecommerce_item_doc = ecommerce_item.create_ecommerce_item(
 				MODULE_NAME,
 				integration_item_code,
 				item_dict,
@@ -151,6 +151,12 @@ class ShopifyProduct:
 				variant_of=variant_of,
 				has_variants=has_variant,
 			)
+
+			item_code = ecommerce_item_doc.integration_item_code
+			if item_code and product_dict.get("vendor"):
+				supplier_docname = self._get_supplier(product_dict)
+				if supplier_docname:
+					self._create_item_supplier(item_code, supplier_docname)
 
 	def _create_item_variants(self, product_dict, warehouse, attributes):
 		template_item = ecommerce_item.get_erpnext_item(
@@ -237,6 +243,25 @@ class ShopifyProduct:
 			).insert()
 			return supplier_group.name
 		return supplier_group
+
+	def _create_item_supplier(self, item_code, supplier_docname):
+		"""Create Item Supplier child record if not exists."""
+		supplier_fields = {
+			"doctype": "Item Supplier",
+			"parenttype": "Item",
+			"parent": item_code,
+			"supplier": supplier_docname,
+		}
+		# Remove None values
+		supplier_fields = {k: v for k, v in supplier_fields.items() if v is not None}
+		try:
+			exists = frappe.db.exists("Item Supplier", {"parent": item_code, "supplier": supplier_docname})
+			if not exists:
+				item_doc = frappe.get_doc("Item", item_code)
+				item_doc.append("supplier_items", supplier_fields)
+				item_doc.save(ignore_permissions=True)
+		except Exception:
+			pass
 
 
 def _add_weight_details(product_dict):

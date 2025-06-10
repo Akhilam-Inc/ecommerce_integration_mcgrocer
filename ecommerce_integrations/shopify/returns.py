@@ -176,10 +176,9 @@ def handle_shopify_return(payload, request_id=None):
         shopify_order_id = str(payload.get("id") or payload.get("order_id"))
         returns = payload.get("returns", [])
         if not shopify_order_id or not returns:
-            create_shopify_log(status="Error",message="Missing required Shopify return data.", rollback=True)
             return
 
-        # Find the Delivery Note with matching Shopify order id
+
         delivery_notes = frappe.get_all(
             "Delivery Note",
             filters={"shopify_order_id": shopify_order_id},

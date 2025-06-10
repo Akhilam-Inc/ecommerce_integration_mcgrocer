@@ -12,6 +12,10 @@ from ecommerce_integrations.shopify.utils import create_shopify_log
 
 def prepare_sales_invoice(payload, request_id=None):
 	from ecommerce_integrations.shopify.order import get_sales_order
+ #TODO: Fix issue where the code is running for 'order/paid' shopify webhook before  before order synced based on 'order/create' causing the error "Sales Order not found for syncing sales invoice." Perhaps make the code wait a few seconds before execution
+ 
+	import time
+	time.sleep(5)
 
 	order = payload
 
