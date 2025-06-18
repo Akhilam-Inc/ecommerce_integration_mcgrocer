@@ -565,14 +565,20 @@ def sync_sales_order_items(payload, request_id=None):
         return
 
     order = payload
-    try:        
+    try:
         frappe.set_user('Administrator')
         shopify_order_id = order["order_edit"]["order_id"]
         shopify_order = get_shopify_order(shopify_settings, shopify_order_id)
-        erpnext_order = get_erpnext_order(shopify_order_id)
-
-        if not erpnext_order:
-            frappe.throw(f"Sales Order with Shopify Order ID {shopify_order_id} does not exist")
+        # Try to get the ERPNext order
+        erpnext_order_list = frappe.db.get_list(
+            "Sales Order", filters={"shopify_order_id": shopify_order_id}, fields=["name", "delivery_date"]
+        )
+        if not erpnext_order_list:
+            # Order does not exist, create it using your existing function
+            create_order(shopify_order, shopify_settings)
+            create_shopify_log(message=f"Sales Order created for Shopify Order ID '{shopify_order_id}'", status="Success")
+            return True  # No need to sync items, just created
+        erpnext_order = erpnext_order_list[0]
 
         erpnext_existing_items, active_erpnext_items = get_erpnext_existing_items(erpnext_order.name)
         active_shopify_items = get_active_shopify_items(shopify_order)

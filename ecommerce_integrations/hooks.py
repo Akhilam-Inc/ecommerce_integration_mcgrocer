@@ -115,6 +115,7 @@ doc_events = {
 		],
 	},
 	"Sales Order": {
+    "autoname": "ecommerce_integrations.utils.naming_series.sales_order_custom_naming",
 		"on_update_after_submit": "ecommerce_integrations.unicommerce.order.update_shipping_info",
 		"on_cancel": "ecommerce_integrations.unicommerce.status_updater.ignore_pick_list_on_sales_order_cancel",
 	},
