@@ -222,7 +222,8 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
             "custom_last_sync_time": last_scrap_update,
             "opening_stock": variant.get("stock", 0),
             "valuation_rate": variant.get("cost_price", 0),
-            "shopify_selling_rate": variant.get("sale_price", 0)
+            "shopify_selling_rate": variant.get("sale_price", 0),
+            "data_source": "Shopmate"
         }
         
         # Remove None values
