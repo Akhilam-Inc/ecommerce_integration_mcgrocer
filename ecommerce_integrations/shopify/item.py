@@ -249,6 +249,7 @@ def create_item_and_ecommerce_item(product, integration="shopify"):
                 "supplier": supplier,
                 "custom_product_url": vendor_url,
                 "custom_price": cost_price,
+                "main_vendor": 1,
             }
             # Remove None values
             supplier_fields = {k: v for k, v in supplier_fields.items() if v is not None}

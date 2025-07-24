@@ -1,0 +1,58 @@
+[
+  {
+    "shopmate_id": "64281",
+    "shopify_id": "8615206453486",
+    "title": "Clinique Dramatically Different™ Moisturizing BB-gel 50ml",
+    "slug": "clinique-dramatically-differenttm-moisturizing-bb-gel-50ml",
+    "sku": "8712956",
+    "vendor": "Boots",
+    "shopmate_vendor": "Boots",
+    "description": "<div id=\"estore_product_longdesc\">\n\n<div id=\"contentOmnipresent\">\n<div dir=\"ltr\">\n<p id=\"product_long_description\">What It Is: 8-hour oil-free hydration that  naturally perfects and unifies skin tone. What It Does: BB-gel with Transforming Tint Release Technology™ delivers 8-hour oil-free hydration and a sheer wash of color that first appears as a grey hue, then transforms to naturally perfect and unify skin tone.</p>\n</div>\n</div>\n\n</div>",
+    "status": "active",
+    "product_image_url": "https://boots.scene7.com/is/image/Boots/10272903?wid=1200&hei=1200&op_sharpen=1",
+    "shopify_admin_url": "https://admin.shopify.com/store/mcgrocer-com/products/8615206453486",
+    "shopify_page_url": "https://mcgrocer.com/products/clinique-dramatically-different-moisturizing-bb-gel-50ml",
+    "vendor_url": "https://www.boots.com//clinique-dramatically-different-moisturizing-bb-gel-50ml-10272903",
+    "ai_title": "Clinique Dramatically Different™ BB-Gel - 50ml - Oil-Free Hydration & Color Correction \n",
+    "ai_summary": "Experience 8-hour oil-free hydration with Clinique Dramatically Different™ Moisturizing BB-gel, a unique formula that perfects and unifies your skin tone for a naturally flawless look. This lightweight BB-gel is ideal for busy women seeking a simple, multi-tasking skincare solution. \n<ul>\n<li><b>Transforming Tint Release Technology™</b> delivers a sheer wash of color that adapts to your natural skin tone.</li>\n<li><b>Oil-free formula</b> provides lightweight hydration without clogging pores.</li>\n<li><b>Camouflage print</b> on the bottle helps you find the right shade for your skin tone.</li>\n<li><b>Can be applied like a moisturizer</b>, for a natural and seamless finish.</li>\n<li><b>Suitable for all skin types</b>, leaving skin feeling smooth and refreshed.</li>\n</ul> \n",
+    "multiple_variants": false,
+    "is_alcohol_check_applied": false,
+    "ai_category_response": "{'product_id': 64281, 'level_1': 'Health, Beauty & Personal Care', 'level_2': 'Skin Care', 'level_3': 'Face Creams, Serums & Oils', 'level_4': 'Tinted Moisturiser', 'level_5': None, 'level_6': None, 'level_7': None}",
+    "created_at": "2024-01-01 15:50:07.905428+00",
+    "updated_at": "2025-03-20 02:29:22.754491+00",
+    "last_scrap_update": "2025-03-20 02:28:32.713711+00",
+    "variants": [
+      {
+        "shopmate_id": 767953,
+        "shopify_id": "46269175529710",
+        "sku": "8712956",
+        "title": "Default Title",
+        "cost_price": 24,
+        "sale_price": 38.4,
+        "image": null,
+        "stock": 1000,
+        "inventory_item_id": "48359240564974",
+        "dimensions": null,
+        "weight": 0.5,
+        "color": null,
+        "size": null,
+        "material": null,
+        "style": null,
+        "barcode": null,
+        "ai_based_weight": null,
+        "volumetric_weight": null
+      }
+    ],
+    "images": [
+      {
+        "shopmate_id": 997054,
+        "shopify_id": "43362079178990",
+        "variant_id": null,
+        "image_url": "https://cdn.shopify.com/s/files/1/0522/0125/9183/files/00dfbf32cb90db41d2e40c94dde1b654.webp?v=1742438154",
+        "source_url": "https://boots.scene7.com/is/image/Boots/10272903?wid=1200&hei=1200&op_sharpen=1",
+        "image_file": "",
+        "alt_text": null
+      }
+    ]
+  }
+]
