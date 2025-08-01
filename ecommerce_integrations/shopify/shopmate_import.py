@@ -59,7 +59,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                         "price": v.get("sale_price", 0),
                         "weight": v.get("weight", 0),
                         "weight_unit": "kg",
-                        "inventory_quantity": v.get("stock", 0),
+                        "inventory_quantity": 0, # opening stock set to 0
                         "barcode": v.get("barcode", None),
                     } for v in product.get("variants", [])
                 ]
@@ -145,7 +145,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                 "height": height,
                 "tags": ", ".join(tags) if tags else None,
                 "custom_last_sync_time": last_scrap_update,
-                "opening_stock": variant.get("stock", 0),
+                "opening_stock": 0, # opening stock set to 0
                 "valuation_rate": variant.get("cost_price", 0),
                 "shopify_selling_rate": variant.get("sale_price", 0),
                 "data_source": "Shopmate"
