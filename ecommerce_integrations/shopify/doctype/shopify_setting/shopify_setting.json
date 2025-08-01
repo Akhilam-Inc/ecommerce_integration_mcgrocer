@@ -33,6 +33,7 @@
   "sync_sales_invoice",
   "add_shipping_as_item",
   "consolidate_taxes",
+  "sync_edited_orders",
   "section_break_22",
   "html_16",
   "taxes",
@@ -110,8 +111,7 @@
    "fieldname": "webhooks",
    "fieldtype": "Table",
    "label": "Webhooks",
-   "options": "Shopify Webhooks",
-   "read_only": 1
+   "options": "Shopify Webhooks"
   },
   {
    "fieldname": "customer_settings_section",
@@ -387,12 +387,18 @@
    "fieldtype": "Link",
    "label": "Default Shipping Charges Account",
    "options": "Account"
+  },
+  {
+   "default": "0",
+   "fieldname": "sync_edited_orders",
+   "fieldtype": "Check",
+   "label": "Sync items when an Order is edited"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-10-24 10:38:49.247431",
+ "modified": "2025-03-18 06:28:34.644440",
  "modified_by": "Administrator",
  "module": "shopify",
  "name": "Shopify Setting",
