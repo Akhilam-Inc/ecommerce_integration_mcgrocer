@@ -115,6 +115,7 @@ doc_events = {
 		],
 	},
 	"Sales Order": {
+    "autoname": "ecommerce_integrations.utils.naming_series.sales_order_custom_naming",
 		"on_update_after_submit": "ecommerce_integrations.unicommerce.order.update_shipping_info",
 		"on_cancel": "ecommerce_integrations.unicommerce.status_updater.ignore_pick_list_on_sales_order_cancel",
 	},
@@ -128,6 +129,10 @@ doc_events = {
 	"Sales Invoice": {
 		"on_submit": "ecommerce_integrations.unicommerce.invoice.on_submit",
 		"on_cancel": "ecommerce_integrations.unicommerce.invoice.on_cancel",
+	},
+  "Delivery Note": {
+		"on_submit": "ecommerce_integrations.shopify.delivery_note.sync_delivery_note_as_shopify_fulfilment",
+		"on_cancel": "ecommerce_integrations.shopify.delivery_note.sync_delivery_note_as_shopify_fulfilment",	
 	},
 }
 

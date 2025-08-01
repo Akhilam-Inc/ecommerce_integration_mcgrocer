@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Check if a port is passed as an argument
+if [ -z "$1" ]; then
+    echo "Usage: ./run_ssh_tunnel.sh <port>"
+    exit 1
+fi
+
+# Assign the port argument to a variable
+PORT=$1
+
+# Run the SSH tunnel command with the specified port
+ssh -R 80:localhost:$PORT key@localhost.run
