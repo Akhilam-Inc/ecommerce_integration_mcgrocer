@@ -35,48 +35,8 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
     """
     import requests
     import random
-    shopify_product_id = None
-    try:
-        # Create product in Shopify
-        setting = frappe.get_doc("Shopify Setting")
-        shopify_url = setting.shopify_url
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "X-Shopify-Access-Token": setting.get_password("password")
-        }
-        payload = {
-            "product": {
-                "title": product["title"],
-                "body_html": product.get("description", ""),
-                "vendor": product.get("vendor", ""),
-                "status": product.get("status", "active"),
-                "images": [{"src": img["image_url"]} for img in (product.get("images") or [])],
-                "variants": [
-                    {
-                        "title": f"{v.get('title')} {random.randint(0, 500)}" or f"{product.get('title', '')} Variant",
-                        "sku": v.get("sku", ""),
-                        "price": v.get("sale_price", 0),
-                        "weight": v.get("weight", 0),
-                        "weight_unit": "kg",
-                        "inventory_quantity": 0, # opening stock set to 0
-                        "barcode": v.get("barcode", None),
-                    } for v in product.get("variants", [])
-                ]
-            }
-        }
-        url = f"https://{shopify_url}/admin/api/2025-04/products.json"
-        resp = requests.post(url, headers=headers, data=json.dumps(payload))
-        if resp.status_code == 201:
-            shopify_product = resp.json()["product"]
-            shopify_product_id = shopify_product.get("id")
-            if product["variants"] and len(product["variants"]) > 0:
-                product["variants"][0]["id"] = shopify_product["variants"][0].get("id")
-            product["id"] = shopify_product_id
-        else:
-            return {"error": f"Failed to create product in Shopify: {product['title']} - {resp.text}"}
-    except Exception as e:
-        return {"error": f"Shopify API error: {str(e)}"}
+    shopify_product_id = product.get("shopify_id")
+    product["id"] = shopify_product_id
 
     # Now create in ERPNext
     try:
