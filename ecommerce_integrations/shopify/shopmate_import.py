@@ -36,6 +36,8 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
     import requests
     import random
     shopify_product_id = product.get("shopify_id")
+    if not shopify_product_id:
+        frappe.throw("Shopify product ID is required for import.")
     product["id"] = shopify_product_id
 
     # Now create in ERPNext
