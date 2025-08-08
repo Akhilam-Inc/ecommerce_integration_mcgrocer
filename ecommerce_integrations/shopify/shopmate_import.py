@@ -121,7 +121,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
             except frappe.DuplicateEntryError:
                 item_doc = frappe.get_doc("Item", item_code)
                 updated = True
-            # Item Supplier
+            # Collect all changes before saving
             supplier = product.get("vendor")
             vendor_url = product.get("vendor_url")
             cost_price = variant.get("cost_price")
@@ -136,13 +136,25 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                     "main_vendor": 1,
                 }
                 supplier_fields = {k: v for k, v in supplier_fields.items() if v is not None}
-                try:
-                    exists = frappe.db.exists("Item Supplier", {"parent": item_code, "supplier": supplier})
-                    if not exists:
-                        item_doc.append("supplier_items", supplier_fields)
-                        item_doc.save(ignore_permissions=True)
-                except Exception:
-                    pass
+                exists = frappe.db.exists("Item Supplier", {"parent": item_code, "supplier": supplier})
+                if not exists:
+                    item_doc.append("supplier_items", supplier_fields)
+            # Barcode
+            barcode = variant.get("barcode")
+            barcode_type = None
+            if barcode:
+                barcode_row = {
+                    "barcode": barcode,
+                    "barcode_type": barcode_type,
+                    "uom": "Nos"
+                }
+                if not any(b.barcode == barcode for b in getattr(item_doc, "barcodes", [])):
+                    item_doc.append("barcodes", barcode_row)
+            # Save only once after all changes
+            try:
+                item_doc.save(ignore_permissions=True)
+            except Exception as e:
+                frappe.log_error(f"Failed to save Item {item_code}: {e}")
             # Ecommerce Item
             ecommerce_fields = {
                 "doctype": "Ecommerce Item",
@@ -159,18 +171,6 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                 ecommerce_item.insert(ignore_permissions=True, ignore_if_duplicate=True)
             except frappe.DuplicateEntryError:
                 pass
-            # Barcode
-            barcode = variant.get("barcode")
-            barcode_type = None
-            if barcode:
-                barcode_row = {
-                    "barcode": barcode,
-                    "barcode_type": barcode_type,
-                    "uom": "Nos"
-                }
-                if not any(b.barcode == barcode for b in getattr(item_doc, "barcodes", [])):
-                    item_doc.append("barcodes", barcode_row)
-                    item_doc.save(ignore_permissions=True)
             # Item Price
             sale_price = variant.get("sale_price")
             if sale_price is not None:
