@@ -126,17 +126,27 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
             vendor_url = product.get("vendor_url")
             cost_price = variant.get("cost_price")
             if supplier:
+                # Ensure Supplier exists (create if not)
+                supplier_name = frappe.db.get_value("Supplier", {"supplier_name": ["like", f"%{supplier}%"]}, "name")
+                if not supplier_name:
+                    supplier_doc = frappe.get_doc({
+                        "doctype": "Supplier",
+                        "supplier_name": supplier,
+                        "supplier_type": "Company",
+                        "supplier_group": "All Supplier Groups"
+                    }).insert(ignore_permissions=True)
+                    supplier_name = supplier_doc.name
                 supplier_fields = {
                     "doctype": "Item Supplier",
                     "parenttype": "Item",
                     "parent": item_code,
-                    "supplier": supplier,
+                    "supplier": supplier_name,
                     "custom_product_url": vendor_url,
                     "custom_price": cost_price,
                     "main_vendor": 1,
                 }
                 supplier_fields = {k: v for k, v in supplier_fields.items() if v is not None}
-                exists = frappe.db.exists("Item Supplier", {"parent": item_code, "supplier": supplier})
+                exists = frappe.db.exists("Item Supplier", {"parent": item_code, "supplier": supplier_name})
                 if not exists:
                     item_doc.append("supplier_items", supplier_fields)
             # Barcode
