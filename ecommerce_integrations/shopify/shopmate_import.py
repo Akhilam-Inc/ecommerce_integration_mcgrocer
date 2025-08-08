@@ -43,6 +43,8 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
     # Now create in ERPNext
     try:
         variants = product.get("variants", [])
+        if variants is None:
+            return {"error": "Product is missing 'variants' (got None instead of a list) for product: {}".format(product.get('title', 'Unknown'))}
         # Parse ai_category_response for item group
         item_group = "All Item Groups"
         ai_category = product.get("ai_category_response")
