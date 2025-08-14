@@ -124,7 +124,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                 item_doc = frappe.get_doc("Item", item_code)
                 updated = True
             # Collect all changes before saving
-            supplier = product.get("vendor")
+            supplier = product.get("shopmate_vendor")
             vendor_url = product.get("vendor_url")
             cost_price = variant.get("cost_price")
             if supplier:
