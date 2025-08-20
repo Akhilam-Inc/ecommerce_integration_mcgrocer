@@ -59,11 +59,37 @@ def create_log(
 	else:
 		log = frappe.get_doc("Ecommerce Integration Log", frappe.flags.request_id)
 
-	if response_data and not isinstance(response_data, str):
-		response_data = json.dumps(response_data, sort_keys=True, indent=4)
+	def _safe_serialize(data):
+		"""Serialize data for storing in the log.
 
-	if request_data and not isinstance(request_data, str):
-		request_data = json.dumps(request_data, sort_keys=True, indent=4)
+		- If bytes/bytearray: decode as utf-8, try to pretty-print JSON, otherwise return decoded text.
+		- If str: return as-is.
+		- Otherwise: try json.dumps with a fallback to str() or repr().
+		"""
+		if data is None:
+			return None
+		if isinstance(data, str):
+			return data
+		if isinstance(data, (bytes, bytearray)):
+			try:
+				text = data.decode("utf-8")
+			except Exception:
+				return str(data)
+			try:
+				parsed = json.loads(text)
+				return json.dumps(parsed, sort_keys=True, indent=4)
+			except Exception:
+				return text
+		try:
+			return json.dumps(data, sort_keys=True, indent=4, default=str)
+		except Exception:
+			try:
+				return str(data)
+			except Exception:
+				return repr(data)
+
+	response_data = _safe_serialize(response_data)
+	request_data = _safe_serialize(request_data)
 
 	log.message = message or _get_message(exception)
 	log.method = log.method or method

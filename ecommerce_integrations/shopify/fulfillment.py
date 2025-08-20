@@ -114,7 +114,7 @@ def get_shopify_headers(setting):
     }
 
 
-def create_fulfillment_for_dn_items(fulfillment_order_id, line_items, setting):
+def create_fulfillment_for_dn_items(dn, fulfillment_order_id, line_items, setting):
     """
     Create a fulfillment for delivery note items in Shopify.
     This function sends a POST request to the Shopify API to create a fulfillment
@@ -139,10 +139,15 @@ def create_fulfillment_for_dn_items(fulfillment_order_id, line_items, setting):
                     "fulfillment_order_id": fulfillment_order_id,
                     "fulfillment_order_line_items": line_items,
                 }
-            ]
+            ],
+            "tracking_info": {
+                "number": dn.shipstation_tracking_number,
+                "url": dn.shipstation_tracking_url
+            }
         }
     }
     
+    create_shopify_log(message=f"Creating fulfillment for delivery note {dn.name}", status="Information", request_data=payload)
     return requests.post(fulfillment_url, json=payload, headers=headers, timeout=10)
 
 
@@ -167,18 +172,30 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
             if str(line_item['variant_id']) == str(item['variant_id'])
         ]
 
-        create_shopify_log(message=f"Creating fulfillment for delivery note {delivery_note_doc.name}", status="Information", request_data={
-            "fulfillment_order": fulfillment_order,
-            "items_to_fulfill": items_to_fulfill
-        })
-        response = create_fulfillment_for_dn_items(fulfillment_order['id'], items_to_fulfill, setting)
+        response = create_fulfillment_for_dn_items(delivery_note_doc, fulfillment_order['id'], items_to_fulfill, setting)
 
         if response.status_code in (200, 201):
             fulfillment_data = response.json()["fulfillment"]
             fulfillment_id = str(fulfillment_data["id"])
-            delivery_note_doc.db_set(FULLFILLMENT_ID_FIELD, fulfillment_id)
+            delivery_note_doc.db_set(FULLFILLMENT_ID_FIELD, fulfillment_id, commit=True)
             delivery_note_doc.add_comment(text=f"Fulfillment created in Shopify: {fulfillment_id}")
             create_shopify_log(status="Success", message=f"Fulfillment created in Shopify: {fulfillment_id}", request_data=json.dumps(response.json() or {}))
+
+            # Unassign totes
+            so_name = None
+            try:
+                dn_shopify_order_number = getattr(delivery_note_doc, ORDER_NUMBER_FIELD, None)
+                if dn_shopify_order_number:
+                    so_name = frappe.db.get_value("Sales Order", {ORDER_NUMBER_FIELD: dn_shopify_order_number}, "name")
+            except Exception:
+                so_name = None
+
+            if so_name:
+                sales_order_doc = frappe.get_doc("Sales Order", so_name, fields=["tote_number"])
+                if sales_order_doc.tote_number:
+                    tote_doc = frappe.get_doc("Tote", sales_order_doc.tote_number)
+                    tote_doc.unassign()
+
         elif response.status_code == 422:
             create_shopify_log(status="Error", message="Fulfillment creation failed. The fulfillment order is already fulfilled in Shopify.", request_data=json.dumps(response.json() or {}), response_data=response.text)
             return
@@ -233,11 +250,6 @@ def prepare_shopify_fulfillment(delivery_note_doc):
     try:
         if delivery_note_doc.shopify_order_id:
             create_shopify_fulfillment(delivery_note_doc, setting)
-            create_shopify_log(
-                status="Success", 
-                message=f"Delivery note [{delivery_note_doc.name}] has fulfilled Shopify order [{delivery_note_doc.shopify_order_id}].",
-                request_data=json.dumps(delivery_note_doc.as_dict(), default=json_serial)
-            )
             frappe.msgprint(f"Order [{delivery_note_doc.shopify_order_id}] has been marked as fulfilled in Shopify.", alert=True, indicator="green")
         else:
             frappe.throw("The delivery note does not have a Shopify order ID.")
