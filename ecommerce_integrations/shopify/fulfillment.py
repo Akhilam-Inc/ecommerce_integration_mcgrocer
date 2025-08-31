@@ -195,6 +195,8 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
                 if sales_order_doc.tote_number:
                     tote_doc = frappe.get_doc("Tote", sales_order_doc.tote_number)
                     tote_doc.unassign()
+            frappe.db.set_value("Sales Order", so_name, "fulfillment_status", "Fulfilled")
+            frappe.db.commit()
 
         elif response.status_code == 422:
             create_shopify_log(status="Error", message="Fulfillment creation failed. The fulfillment order is already fulfilled in Shopify.", request_data=json.dumps(response.json() or {}), response_data=response.text)
