@@ -4,10 +4,14 @@ import json
 from ecommerce_integrations.shopify.fulfillment import prepare_shopify_fulfillment
 
 
+@frappe.whitelist()
 def sync_delivery_note_as_shopify_fulfilment(delivery_note_doc, method=None):
     """
     Syncs a delivery note as a Shopify fulfilment
     """
+    # check if delivery_not_doc is string in case json payload
+    if delivery_note_doc and isinstance(delivery_note_doc, str):
+        delivery_note_doc = frappe.get_doc("Delivery Note", json.loads(delivery_note_doc)["name"])
 
     if delivery_note_doc.docstatus == 2:
         # TODO: Cancelled Delivery Note

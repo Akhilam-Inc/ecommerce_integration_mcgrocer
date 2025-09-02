@@ -162,6 +162,7 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
         fulfillment_orders = get_order_fullfilments_orders(delivery_note_doc.shopify_order_id, setting)
         if not fulfillment_orders['fulfillment_orders']:
             frappe.throw(f"No fulfillment orders found for order {delivery_note_doc.shopify_order_id}")
+            return
         fulfillment_order = fulfillment_orders['fulfillment_orders'][-1]
 
         delivery_items = get_fulfillment_items_from_dn(delivery_note_doc.items)
@@ -197,10 +198,11 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
                     tote_doc.unassign()
             frappe.db.set_value("Sales Order", so_name, "fulfillment_status", "Fulfilled")
             frappe.db.commit()
+            return True
 
         elif response.status_code == 422:
             create_shopify_log(status="Error", message="Fulfillment creation failed. The fulfillment order is already fulfilled in Shopify.", request_data=json.dumps(response.json() or {}), response_data=response.text)
-            return
+            return False
         else:
             response_content = None
             try:
@@ -221,6 +223,7 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
             )
            
             frappe.throw(f"Failed to create fulfillment in Shopify: {response.status_code} - {response.reason}")
+            return False
     except (ValueError, KeyError, requests.RequestException, shopify.ApiAccessError) as e:
         frappe.throw(str(e))
 
@@ -253,6 +256,7 @@ def prepare_shopify_fulfillment(delivery_note_doc):
         if delivery_note_doc.shopify_order_id:
             create_shopify_fulfillment(delivery_note_doc, setting)
             frappe.msgprint(f"Order [{delivery_note_doc.shopify_order_id}] has been marked as fulfilled in Shopify.", alert=True, indicator="green")
+            return True
         else:
             frappe.throw("The delivery note does not have a Shopify order ID.")
     except Exception as e:
