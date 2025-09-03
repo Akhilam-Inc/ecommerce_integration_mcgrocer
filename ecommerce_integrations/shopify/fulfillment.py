@@ -165,13 +165,19 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
             return
         fulfillment_order = fulfillment_orders['fulfillment_orders'][-1]
 
-        delivery_items = get_fulfillment_items_from_dn(delivery_note_doc.items)
-        items_to_fulfill = [
-            {"id": line_item['id'], "quantity": int(item['quantity'])}
-            for line_item in fulfillment_order['line_items']
-            for item in delivery_items
-            if str(line_item['variant_id']) == str(item['variant_id'])
-        ]
+        if delivery_note_doc.is_partial_fulfillment:
+            delivery_items = get_fulfillment_items_from_dn(delivery_note_doc.items)
+            items_to_fulfill = [
+                {"id": line_item['id'], "quantity": int(item['quantity'])}
+                for line_item in fulfillment_order['line_items']
+                for item in delivery_items
+                if str(line_item['variant_id']) == str(item['variant_id'])
+            ]
+        else:
+            items_to_fulfill = [
+                {"id": line_item['id'], "quantity": int(line_item['quantity'])}
+                for line_item in fulfillment_order['line_items']
+            ]
 
         response = create_fulfillment_for_dn_items(delivery_note_doc, fulfillment_order['id'], items_to_fulfill, setting)
 
