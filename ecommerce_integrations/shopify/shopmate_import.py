@@ -173,7 +173,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                 "erpnext_item_code": item_doc.item_code,
                 "integration": integration,
                 "integration_item_code": shopify_product_id,
-                "variant_id": variant.get("id"),
+                "variant_id": variant.get("shopify_id"),
                 "sku": sku,
                 "item_name": product.get("title"),
                 "published": 1,

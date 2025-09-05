@@ -173,11 +173,13 @@ def create_shopify_fulfillment(delivery_note_doc, setting):
                 for item in delivery_items
                 if str(line_item['variant_id']) == str(item['variant_id'])
             ]
+            create_shopify_log(message=f"Partial fulfillment for delivery note {delivery_note_doc.name}: {items_to_fulfill}", status="Information", request_data=json.dumps(items_to_fulfill, default=json_serial))
         else:
             items_to_fulfill = [
                 {"id": line_item['id'], "quantity": int(line_item['quantity'])}
                 for line_item in fulfillment_order['line_items']
             ]
+            create_shopify_log(message=f"Full fulfillment for delivery note {delivery_note_doc.name}: {items_to_fulfill}", status="Information", request_data=json.dumps(items_to_fulfill, default=json_serial))
 
         response = create_fulfillment_for_dn_items(delivery_note_doc, fulfillment_order['id'], items_to_fulfill, setting)
 
