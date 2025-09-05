@@ -112,7 +112,8 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                 "opening_stock": 0, # opening stock set to 0
                 "valuation_rate": variant.get("cost_price", 0),
                 "shopify_selling_rate": variant.get("sale_price", 0),
-                "data_source": "Shopmate"
+                "data_source": "Shopmate",
+                "custom_ecommerce_vendor": product.get("vendor")
             }
             item_fields = {k: v for k, v in item_fields.items() if v is not None}
             try:
@@ -124,7 +125,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
                 item_doc = frappe.get_doc("Item", item_code)
                 updated = True
             # Collect all changes before saving
-            supplier = product.get("shopmate_vendor")
+            supplier = product.get("vendor")
             vendor_url = product.get("vendor_url")
             cost_price = variant.get("cost_price")
             if supplier:

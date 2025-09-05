@@ -675,3 +675,7 @@ def update_shopify_fulfillment(delivery_note):
         create_shopify_log(status="Success", message=f"Fulfillment updated for Shopify Order {shopify_order_id}")
     except Exception as e:
         create_shopify_log(status="Error", exception=e, message=f"Failed to update fulfillment for Shopify Order {shopify_order_id}")
+
+def update_order(payload, request_id=None):
+    from ecommerce_integrations.shopify.returns import handle_shopify_returns
+    handle_shopify_returns(payload, request_id)

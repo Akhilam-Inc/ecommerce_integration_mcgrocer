@@ -27,7 +27,7 @@ EVENT_MAPPER = {
     "orders/fulfilled": "ecommerce_integrations.shopify.fulfillment.prepare_delivery_note",
     "orders/cancelled": "ecommerce_integrations.shopify.order.cancel_order",
     "orders/partially_fulfilled": "ecommerce_integrations.shopify.fulfillment.prepare_delivery_note",
-    "orders/updated": "ecommerce_integrations.shopify.returns.handle_shopify_return",
+    "orders/updated": "ecommerce_integrations.shopify.order.update_order",
     "returns/update": "ecommerce_integrations.shopify.returns.handle_shopify_return",
 }
 
