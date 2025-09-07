@@ -160,7 +160,7 @@ class ShopifyProduct:
 			if item_code and product_dict.get("vendor"):
 				supplier_docname = self._get_supplier(product_dict)
 				if supplier_docname:
-					self._create_item_supplier(item_code, supplier_docname)
+					self._create_item_supplier(item_code, supplier_docname, product_dict["variants"][0].get("price") or 0)
 
 	def _create_item_variants(self, product_dict, warehouse, attributes):
 		template_item = ecommerce_item.get_erpnext_item(
@@ -252,13 +252,15 @@ class ShopifyProduct:
 			return supplier_group.name
 		return supplier_group
 
-	def _create_item_supplier(self, item_code, supplier_docname):
+	def _create_item_supplier(self, item_code, supplier_docname, price):
 		"""Create Item Supplier child record if not exists."""
 		supplier_fields = {
 			"doctype": "Item Supplier",
 			"parenttype": "Item",
 			"parent": item_code,
 			"supplier": supplier_docname,
+			"custom_price": price,
+			"main_vendor": 1,
 		}
 		# Remove None values
 		supplier_fields = {k: v for k, v in supplier_fields.items() if v is not None}
