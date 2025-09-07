@@ -178,6 +178,11 @@ def handle_shopify_return(payload, request_id=None):
         if not shopify_order_id or not returns:
             return
 
+        create_shopify_log(
+            status="Info",
+            message="Processing Shopify return webhook",
+            response_data=json.dumps(returns, indent=2)
+        )
 
         delivery_notes = frappe.get_all(
             "Delivery Note",

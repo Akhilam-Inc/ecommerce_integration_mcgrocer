@@ -569,6 +569,10 @@ def sync_sales_order_items(payload, request_id=None):
         frappe.set_user('Administrator')
         shopify_order_id = order["order_edit"]["order_id"]
         shopify_order = get_shopify_order(shopify_settings, shopify_order_id)
+
+        # Ensure all items from the edited order exist in ERPNext before syncing
+        create_items_if_not_exist(shopify_order)
+
         # Try to get the ERPNext order
         erpnext_order_list = frappe.db.get_list(
             "Sales Order", filters={"shopify_order_id": shopify_order_id}, fields=["name", "delivery_date"]
@@ -675,5 +679,5 @@ def update_shopify_fulfillment(delivery_note):
         create_shopify_log(status="Error", exception=e, message=f"Failed to update fulfillment for Shopify Order {shopify_order_id}")
 
 def update_order(payload, request_id=None):
-    from ecommerce_integrations.shopify.returns import handle_shopify_returns
-    handle_shopify_returns(payload, request_id)
+    from ecommerce_integrations.shopify.returns import handle_shopify_return
+    handle_shopify_return(payload, request_id)
