@@ -329,15 +329,45 @@ def _match_sku_and_link_item(item_dict, product_id, variant_id, variant_of=None,
 
 
 def create_items_if_not_exist(order):
-	"""Using shopify order, sync all items that are not already synced."""
-	for item in order.get("line_items", []):
-		product_id = item["product_id"]
-		variant_id = item.get("variant_id")
-		sku = item.get("sku")
-		product = ShopifyProduct(product_id, variant_id=variant_id, sku=sku)
+	"""
+	Check items from a Shopify order. If an item doesn't exist in ERPNext, create it.
+	If it exists but has a mismatched Product ID or Variant ID, update the existing record.
+	"""
+	for line_item in order.get("line_items", []):
+		try:
+			product_id = line_item.get("product_id")
+			variant_id = line_item.get("variant_id")
+			sku = line_item.get("sku")
 
-		if not product.is_synced():
-			product.sync_product()
+			if not sku:
+				create_shopify_log(
+					message=f"Skipping item sync because SKU is missing. Item: {line_item.get('title')}",
+					status="Warning",
+					request_data=line_item,
+				)
+				continue
+
+			# Check if an Ecommerce Item with this SKU already exists
+			ecom_item_docname = frappe.db.get_value("Ecommerce Item", {"sku": sku, "integration": "shopify"}, "name")
+
+			if not ecom_item_docname:
+				# Item does not exist at all, create it
+				create_shopify_log(message=f"Item with SKU '{sku}' not found. Creating new item.", status="Info", request_data=line_item)
+				product = ShopifyProduct(product_id, variant_id=variant_id, sku=sku)
+				product.sync_product()
+			else:
+				# Item exists, validate its IDs to prevent mapping failures
+				ecom_item = frappe.get_doc("Ecommerce Item", ecom_item_docname)
+				if str(ecom_item.integration_item_code) != str(product_id) or str(ecom_item.variant_id) != str(variant_id):
+					create_shopify_log(message=f"SKU '{sku}' exists but has mismatched IDs. Updating record.", status="Info", request_data={"shopify_item": line_item, "erpnext_item_before_update": ecom_item.as_dict()})
+					ecom_item.integration_item_code = str(product_id)
+					ecom_item.variant_id = str(variant_id)
+					ecom_item.save(ignore_permissions=True)
+					frappe.db.commit()
+
+		except Exception as e:
+			create_shopify_log(message=f"Failed during item check/creation for SKU '{sku}'. Error: {e}", status="Error", exception=e, request_data=line_item)
+			continue
 
 
 def get_item_code(shopify_item):
