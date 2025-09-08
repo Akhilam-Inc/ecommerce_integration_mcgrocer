@@ -11,8 +11,9 @@ def get_series():
 
 def sales_order_custom_naming(doc, method):
     # If shopify_order_number is set, use it
-    if getattr(doc, "shopify_order_number", None):
-        doc.name = f"MC-{doc.shopify_order_number}"
+    shopify_order_number = getattr(doc, "shopify_order_number", None)
+    if shopify_order_number:
+        doc.name = shopify_order_number
     # Otherwise, fallback to default naming series
     else:
-        doc.name = None  # Let ERPNext use the default naming series
+        pass # Let ERPNext use the default naming series

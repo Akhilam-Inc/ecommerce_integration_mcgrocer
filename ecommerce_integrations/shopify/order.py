@@ -147,12 +147,11 @@ def create_sales_order(shopify_order, setting, company=None):
         so = frappe.get_doc(
             {
                 "doctype": "Sales Order",
-                "naming_series": setting.sales_order_series or "SO-Shopify-",
                 ORDER_ID_FIELD: str(shopify_order.get("id")),
                 ORDER_NUMBER_FIELD: shopify_order.get("name"),
                 "customer": customer,
                 "transaction_date": getdate(shopify_order.get("created_at")) or nowdate(),
-                "shopify_datetime": get_datetime(shopify_order.get("created_at")),
+                "shopify_datetime": get_datetime(shopify_order.get("created_at")).strftime('%Y-%m-%d %H:%M:%S'),
                 "delivery_date": delivery_date,
                 "company": setting.company,
                 "selling_price_list": get_dummy_price_list(),
