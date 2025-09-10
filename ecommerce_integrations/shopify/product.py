@@ -505,7 +505,7 @@ def upload_erpnext_item(doc, method=None):
     if product:
       map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
       if not item.variant_of:
-        price = template_item.get("main_vendor_price") or item.get("shopify_selling_rate") or item.get(ITEM_SELLING_RATE_FIELD)
+        price = template_item.get("main_vendor_price") or template_item.get("shopify_selling_rate") or template_item.get(ITEM_SELLING_RATE_FIELD)
         update_default_variant_properties(
           product,
           is_stock_item=template_item.is_stock_item,
@@ -513,7 +513,7 @@ def upload_erpnext_item(doc, method=None):
           price=price,
         )
       else:
-        price = template_item.get("main_vendor_price") or item.get("shopify_selling_rate") or item.get(ITEM_SELLING_RATE_FIELD)
+        price = template_item.get("main_vendor_price") or template_item.get("shopify_selling_rate") or template_item.get(ITEM_SELLING_RATE_FIELD)
         variant_attributes = {"sku": item.item_code, "price": price}
         product.options = []
         max_index_range = min(3, len(template_item.attributes))
