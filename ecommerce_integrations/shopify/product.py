@@ -443,9 +443,11 @@ def upload_erpnext_item(doc, method=None):
       update_default_variant_properties(
         product,
         sku=template_item.item_code,
-        price=template_item.get("main_vendor_price") or template_item.get("shopify_selling_rate") or template_item.get(ITEM_SELLING_RATE_FIELD),
+        price=template_item.get(ITEM_SELLING_RATE_FIELD),
         is_stock_item=template_item.is_stock_item,
       )
+
+# TODO: Fallback when there is no main vendor in Item Supplier, use the first Item Supplier in upload_erpnext_item as vendor for the shopify product
 
       # After updating the variant, we need to find the product again to get the updated variant data
       product = Product.find(product.id)
@@ -459,7 +461,7 @@ def upload_erpnext_item(doc, method=None):
         variant_attributes = {
           "title": template_item.item_name,
           "sku": item.item_code,
-          "price": item.get("main_vendor_price") or item.get("shopify_selling_rate") or item.get(ITEM_SELLING_RATE_FIELD),
+          "price": item.get(ITEM_SELLING_RATE_FIELD),
         }
         max_index_range = min(3, len(template_item.attributes))
         for i in range(0, max_index_range):
@@ -505,16 +507,14 @@ def upload_erpnext_item(doc, method=None):
     if product:
       map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
       if not item.variant_of:
-        price = template_item.get("main_vendor_price") or template_item.get("shopify_selling_rate") or template_item.get(ITEM_SELLING_RATE_FIELD)
         update_default_variant_properties(
           product,
           is_stock_item=template_item.is_stock_item,
           sku=item.item_code,
-          price=price,
+          price=item.get(ITEM_SELLING_RATE_FIELD),
         )
       else:
-        price = template_item.get("main_vendor_price") or template_item.get("shopify_selling_rate") or template_item.get(ITEM_SELLING_RATE_FIELD)
-        variant_attributes = {"sku": item.item_code, "price": price}
+        variant_attributes = {"sku": item.item_code, "price": item.get(ITEM_SELLING_RATE_FIELD)}
         product.options = []
         max_index_range = min(3, len(template_item.attributes))
         for i in range(0, max_index_range):
