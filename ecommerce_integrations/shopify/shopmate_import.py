@@ -209,7 +209,7 @@ def create_variant_product_return(product, integration="shopify"):
             "doctype": "Item",
             "name": item_code,
             "item_code": item_code,
-            "item_name": variant.get("title"),
+            "item_name": f"{product.get('title')} - {variant.get('title')}",
             "item_group": template_doc.item_group,
             "stock_uom": "Nos",
             "variant_of": template_doc.name,
