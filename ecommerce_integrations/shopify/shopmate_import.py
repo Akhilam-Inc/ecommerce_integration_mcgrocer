@@ -94,6 +94,23 @@ def _create_or_get_item_attribute(attribute_name, attribute_values):
         frappe.log_error(message=traceback.format_exc(), title=f"Error in _create_or_get_item_attribute for {attribute_name}")
         raise e
 
+def _create_or_get_supplier(vendor_name):
+    """
+    Ensures a Supplier exists in ERPNext. Creates it if it doesn't.
+    Returns the supplier document name.
+    """
+    if not vendor_name:
+        return None
+    supplier_doc_name = frappe.db.get_value("Supplier", {"supplier_name": vendor_name})
+    if not supplier_doc_name:
+        supplier_doc = frappe.get_doc({
+            "doctype": "Supplier",
+            "supplier_name": vendor_name,
+            "supplier_group": "All Supplier Groups"  # Or some other default
+        }).insert(ignore_permissions=True)
+        supplier_doc_name = supplier_doc.name
+    return supplier_doc_name
+
 def create_variant_product_return(product, integration="shopify"):
     """
     Creates an Item Template and its variants in ERPNext.
@@ -123,6 +140,17 @@ def create_variant_product_return(product, integration="shopify"):
     if styles:
         frappe.log_error(f"Ensuring 'Style' attribute exists with values: {styles}", "Shopmate Import")
         _create_or_get_item_attribute("Style", styles)
+
+    # --- 2.5. Ensure Supplier exists ---
+    vendor_name = product.get("vendor")
+    supplier_doc_name = _create_or_get_supplier(vendor_name)
+    supplier_items = []
+    if supplier_doc_name:
+        supplier_items.append({
+            "supplier": supplier_doc_name,
+            "custom_product_url": product.get("vendor_url"),
+            "main_vendor": 1
+        })
 
     # --- 3. Create the Item Template using shopmate_id ---
     template_item_code = product.get("shopmate_id")
@@ -163,7 +191,8 @@ def create_variant_product_return(product, integration="shopify"):
             "attributes": template_attributes,
             "image": product.get("product_image_url"),
             "data_source": "Shopmate",
-            "custom_ecommerce_vendor": product.get("shopmate_vendor")
+            "custom_ecommerce_vendor": product.get("shopmate_vendor"),
+            "supplier_items": supplier_items
         }
         template_doc = frappe.get_doc(template_fields)
         template_doc.item_name = product.get("title")
@@ -221,6 +250,34 @@ def create_variant_product_return(product, integration="shopify"):
         if variant.get("style"):
             variant_attributes.append({"attribute": "Style", "attribute_value": variant.get("style")})
 
+        length = width = height = None
+        if variant.get("dimensions"):
+            try:
+                dims = ast.literal_eval(variant["dimensions"]) if isinstance(variant["dimensions"], str) else variant["dimensions"]
+                length = dims.get("length")
+                width = dims.get("width")
+                height = dims.get("height")
+            except Exception:
+                pass
+
+        variant_supplier_items = []
+        if supplier_doc_name:
+            variant_supplier_items.append({
+                "supplier": supplier_doc_name,
+                "custom_price": variant.get("sale_price"),
+                "custom_product_url": product.get("vendor_url"),
+                "main_vendor": 1
+            })
+
+        # --- Barcode ---
+        barcode = variant.get("barcode")
+        barcodes_list = []
+        if barcode:
+            barcodes_list.append({
+                "barcode": barcode,
+                "barcode_type": None,
+                "uom": "Nos"
+            })
         item_fields = {
             "doctype": "Item",
             "name": item_code,
@@ -234,7 +291,14 @@ def create_variant_product_return(product, integration="shopify"):
             "valuation_rate": variant.get("cost_price", 0),
             "shopify_selling_rate": variant.get("sale_price", 0),
             "data_source": "Shopmate",
-            "custom_ecommerce_vendor": product.get("shopmate_vendor")
+            "custom_ecommerce_vendor": product.get("shopmate_vendor"),
+            "weight": variant.get("weight"),
+            "volumetric_weight": variant.get("volumetric_weight"),
+            "length": length,
+            "width": width,
+            "height": height,
+            "supplier_items": variant_supplier_items,
+            "barcodes": barcodes_list
         }
 
         try:
@@ -357,6 +421,29 @@ def _create_standalone_item(product, variant, integration):
         except Exception:
             pass
 
+    # --- Supplier logic ---
+    vendor_name = product.get("vendor")
+    supplier_doc_name = _create_or_get_supplier(vendor_name)
+
+    supplier_items = []
+    if supplier_doc_name:
+        supplier_items.append({
+            "supplier": supplier_doc_name,
+            "custom_price": variant.get("sale_price"),
+            "custom_product_url": product.get("vendor_url"),
+            "main_vendor": 1
+        })
+
+    # --- Barcode ---
+    barcode = variant.get("barcode")
+    barcodes_list = []
+    if barcode:
+        barcodes_list.append({
+            "barcode": barcode,
+            "barcode_type": None,
+            "uom": "Nos"
+        })
+
     item_fields = {
         "doctype": "Item",
         "item_code": item_code,
@@ -378,7 +465,9 @@ def _create_standalone_item(product, variant, integration):
         "valuation_rate": variant.get("cost_price", 0),
         "shopify_selling_rate": variant.get("sale_price", 0),
         "data_source": "Shopmate",
-        "custom_ecommerce_vendor": product.get("shopmate_vendor")
+        "custom_ecommerce_vendor": product.get("shopmate_vendor"),
+        "barcodes": barcodes_list,
+        "supplier_items": supplier_items
     }
 
     try:
