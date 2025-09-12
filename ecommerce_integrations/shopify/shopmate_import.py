@@ -107,6 +107,8 @@ def create_variant_product_return(product, integration="shopify"):
     # --- 1. Collect all unique attribute values ---
     colors = list(set(v['color'] for v in variants if v.get('color')))
     sizes = list(set(v['size'] for v in variants if v.get('size')))
+    materials = list(set(v.get('material') for v in variants if v.get('material')))
+    styles = list(set(v.get('style') for v in variants if v.get('style')))
 
     # --- 2. Ensure Item Attributes exist ---
     if colors:
@@ -115,6 +117,12 @@ def create_variant_product_return(product, integration="shopify"):
     if sizes:
         frappe.log_error(f"Ensuring 'Size' attribute exists with values: {sizes}", "Shopmate Import")
         _create_or_get_item_attribute("Size", sizes)
+    if materials:
+        frappe.log_error(f"Ensuring 'Material' attribute exists with values: {materials}", "Shopmate Import")
+        _create_or_get_item_attribute("Material", materials)
+    if styles:
+        frappe.log_error(f"Ensuring 'Style' attribute exists with values: {styles}", "Shopmate Import")
+        _create_or_get_item_attribute("Style", styles)
 
     # --- 3. Create the Item Template using shopmate_id ---
     template_item_code = product.get("shopmate_id")
@@ -126,6 +134,10 @@ def create_variant_product_return(product, integration="shopify"):
         template_attributes.append({"attribute": "Color"})
     if sizes:
         template_attributes.append({"attribute": "Size"})
+    if materials:
+        template_attributes.append({"attribute": "Material"})
+    if styles:
+        template_attributes.append({"attribute": "Style"})
 
     if frappe.db.exists("Item", template_item_code):
         frappe.log_error(f"Template item {template_item_code} already exists. Fetching it.", "Shopmate Import")
@@ -204,6 +216,10 @@ def create_variant_product_return(product, integration="shopify"):
             variant_attributes.append({"attribute": "Color", "attribute_value": variant.get("color")})
         if variant.get("size"):
             variant_attributes.append({"attribute": "Size", "attribute_value": variant.get("size")})
+        if variant.get("material"):
+            variant_attributes.append({"attribute": "Material", "attribute_value": variant.get("material")})
+        if variant.get("style"):
+            variant_attributes.append({"attribute": "Style", "attribute_value": variant.get("style")})
 
         item_fields = {
             "doctype": "Item",
