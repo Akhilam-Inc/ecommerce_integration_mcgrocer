@@ -51,6 +51,7 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
 
     if product.get("multiple_variants"):
         print("Creating variant product")
+        frappe.log_error(f"Creating variant product for: {product.get('title')}", "Shopmate Import")
         return create_variant_product_return(product, integration=integration)
     else:
         print("Creating single item product")
