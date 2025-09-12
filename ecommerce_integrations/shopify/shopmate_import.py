@@ -50,8 +50,10 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
             return {"info": f"Skipped. An item with SKU '{existing_sku}' already exists."}
 
     if product.get("multiple_variants"):
+        print("Creating variant product")
         return create_variant_product_return(product, integration=integration)
     else:
+        print("Creating single item product")
         return create_single_item_return(product, integration=integration)
 
 def _create_or_get_item_attribute(attribute_name, attribute_values):
@@ -337,6 +339,7 @@ def create_variant_product_return(product, integration="shopify"):
         except frappe.DuplicateEntryError:
             frappe.log_error(f"Variant item {item_code} already exists.", "Shopmate Import")
         except Exception as e:
+            print()
             frappe.log_error(message=frappe.get_traceback(), title=f"Error creating variant {item_code} for {title}")
 
     return {"created": True, "item_code": template_doc.name}
