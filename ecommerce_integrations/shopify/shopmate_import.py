@@ -27,6 +27,8 @@ def import_shopmate_items_from_json(data):
             else:
                 results.append({'item': product.get('title'), 'info': 'Processed'})
         except Exception as e:
+            import traceback
+            frappe.log_error(message=traceback.format_exc(), title=f"Error importing product {product.get('title')}")
             results.append({'item': product.get('title'), 'error': str(e)})
     return results
 
@@ -50,11 +52,8 @@ def create_item_and_ecommerce_item_return(product, integration="shopify"):
             return {"info": f"Skipped. An item with SKU '{existing_sku}' already exists."}
 
     if product.get("multiple_variants"):
-        print("Creating variant product")
-        frappe.log_error(f"Creating variant product for: {product.get('title')}", "Shopmate Import")
         return create_variant_product_return(product, integration=integration)
     else:
-        print("Creating single item product")
         return create_single_item_return(product, integration=integration)
 
 def _create_or_get_item_attribute(attribute_name, attribute_values):
@@ -184,8 +183,8 @@ def create_variant_product_return(product, integration="shopify"):
         frappe.log_error(f"Template item {template_item_code} does not exist. Creating it.", "Shopmate Import")
         template_fields = {
             "doctype": "Item",
-            "name": template_item_code,
-            "item_code": template_item_code,
+            "name": str(template_item_code),
+            "item_code": str(template_item_code),
             "item_group": "All Item Groups",
             "description": product.get("description", ""),
             "stock_uom": "Nos",
@@ -283,8 +282,8 @@ def create_variant_product_return(product, integration="shopify"):
             })
         item_fields = {
             "doctype": "Item",
-            "name": item_code,
-            "item_code": item_code,
+            "name": str(item_code),
+            "item_code": str(item_code),
             "item_name": f"{product.get('title')} - {variant.get('title')}",
             "item_group": template_doc.item_group,
             "stock_uom": "Nos",
@@ -450,8 +449,8 @@ def _create_standalone_item(product, variant, integration):
 
     item_fields = {
         "doctype": "Item",
-        "item_code": item_code,
-        "name": item_code,
+        "item_code": str(item_code),
+        "name": str(item_code),
         "item_name": product.get("title"),
         "item_group": item_group,
         "description": product.get("description", ""),
