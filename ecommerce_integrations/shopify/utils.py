@@ -1,6 +1,8 @@
 # Copyright (c) 2021, Frappe and contributors
 # For license information, please see LICENSE
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
+import json
 from typing import List
 
 import frappe
@@ -16,7 +18,20 @@ from ecommerce_integrations.shopify.constants import (
 )
 
 
+def json_serializer(obj):
+	"""JSON serializer for objects not serializable by default json code"""
+	if isinstance(obj, (datetime, date)):
+		return obj.isoformat()
+	if isinstance(obj, Decimal):
+		return float(obj)
+	raise TypeError(f"Type {type(obj)} not serializable")
+
+
 def create_shopify_log(**kwargs):
+	# Serialize data before passing to create_log to handle Decimal and other non-standard JSON types
+	if "request_data" in kwargs:
+		kwargs["request_data"] = json.dumps(kwargs["request_data"], default=json_serializer)
+
 	return create_log(module_def=MODULE_NAME, **kwargs)
 
 
@@ -102,9 +117,3 @@ def _create_ecommerce_items(items: List[_dict]) -> None:
 			}
 		)
 		ecommerce_item.save()
-
-def json_serializer(obj):
-    """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {obj.__class__.__name__} not serializable")

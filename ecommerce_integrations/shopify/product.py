@@ -436,6 +436,7 @@ def upload_erpnext_item(doc, method=None):
     map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
     
     create_shopify_log(message=f"Creating product {template_item.name}", status="Info", request_data=product.to_dict())
+    map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)    
     is_successful = product.save()
 
     if is_successful:
@@ -643,7 +644,7 @@ def update_default_variant_properties(
     default_variant.inventory_management = "shopify"
 
   if price is not None:
-    default_variant.price = price
+    default_variant.price = frappe.utils.flt(price)
   if sku is not None:
     default_variant.sku = sku
 

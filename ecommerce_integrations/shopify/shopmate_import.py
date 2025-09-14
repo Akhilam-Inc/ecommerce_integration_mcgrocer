@@ -118,7 +118,6 @@ def create_variant_product_return(product, integration="shopify"):
     Creates an Item Template and its variants in ERPNext.
     """
     title = product.get("title", "Untitled Product")
-    frappe.log_error(f"Starting variant creation for: {title}", "Shopmate Import")
     variants = product.get("variants", [])
     if not variants:
         return {"error": f"Product '{product.get('title')}' is marked as having variants, but none are provided."}
@@ -131,16 +130,12 @@ def create_variant_product_return(product, integration="shopify"):
 
     # --- 2. Ensure Item Attributes exist ---
     if colors:
-        frappe.log_error(f"Ensuring 'Color' attribute exists with values: {colors}", "Shopmate Import")
         _create_or_get_item_attribute("Color", colors)
     if sizes:
-        frappe.log_error(f"Ensuring 'Size' attribute exists with values: {sizes}", "Shopmate Import")
         _create_or_get_item_attribute("Size", sizes)
     if materials:
-        frappe.log_error(f"Ensuring 'Material' attribute exists with values: {materials}", "Shopmate Import")
         _create_or_get_item_attribute("Material", materials)
     if styles:
-        frappe.log_error(f"Ensuring 'Style' attribute exists with values: {styles}", "Shopmate Import")
         _create_or_get_item_attribute("Style", styles)
 
     # --- 2.5. Ensure Supplier exists ---
@@ -170,17 +165,13 @@ def create_variant_product_return(product, integration="shopify"):
         template_attributes.append({"attribute": "Style"})
 
     if frappe.db.exists("Item", template_item_code):
-        frappe.log_error(f"Template item {template_item_code} already exists. Fetching it.", "Shopmate Import")
         template_doc = frappe.get_doc("Item", template_item_code)
     ecom_item_name = frappe.db.get_value("Ecommerce Item", {"sku": template_item_code, "integration": integration}, "erpnext_item_code")
     if ecom_item_name:
-        frappe.log_error(f"Template with SKU {template_item_code} already exists as Item {ecom_item_name}. Fetching it.", "Shopmate Import")
         template_doc = frappe.get_doc("Item", ecom_item_name)
     else:
         if frappe.db.exists("Item", template_item_code):
             template_doc = frappe.get_doc("Item", template_item_code)
-            frappe.log_error(f"Template item {template_item_code} already exists. Fetching it.", "Shopmate Import")
-        frappe.log_error(f"Template item {template_item_code} does not exist. Creating it.", "Shopmate Import")
         template_fields = {
             "doctype": "Item",
             "name": str(template_item_code),
@@ -218,7 +209,6 @@ def create_variant_product_return(product, integration="shopify"):
 
     
     template_doc.item_code = template_doc.name
-    frappe.log_error(f"Successfully created/found template item: {template_doc.name}", "Shopmate Import")
     
     # --- 4. Prepare for variant creation ---
     shopify_product_id = product.get("shopify_id")
@@ -233,7 +223,6 @@ def create_variant_product_return(product, integration="shopify"):
     for variant in variants:
         variant_shopify_id = variant.get("shopify_id")
         if not variant_shopify_id:
-            frappe.log_error(f"Skipping variant for '{title}' because it is missing a shopify_id.", "Shopmate Import")
             continue
 
         # Check if an Ecommerce Item with this parent product and variant ID already exists
@@ -339,7 +328,6 @@ def create_variant_product_return(product, integration="shopify"):
         except frappe.DuplicateEntryError:
             frappe.log_error(f"Variant item {item_code} already exists.", "Shopmate Import")
         except Exception as e:
-            print()
             frappe.log_error(message=frappe.get_traceback(), title=f"Error creating variant {item_code} for {title}")
 
     return {"created": True, "item_code": template_doc.name}
