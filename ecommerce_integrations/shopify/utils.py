@@ -29,8 +29,10 @@ def json_serializer(obj):
 
 def create_shopify_log(**kwargs):
 	# Serialize data before passing to create_log to handle Decimal and other non-standard JSON types
-	if "request_data" in kwargs:
-		kwargs["request_data"] = json.dumps(kwargs["request_data"], default=json_serializer)
+	for key in ["request_data", "response_data"]:
+		if key in kwargs and kwargs[key]:
+			if not isinstance(kwargs[key], str):
+				kwargs[key] = json.dumps(kwargs[key], default=json_serializer)
 
 	return create_log(module_def=MODULE_NAME, **kwargs)
 

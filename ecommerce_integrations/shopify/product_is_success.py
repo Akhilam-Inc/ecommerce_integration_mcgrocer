@@ -507,21 +507,18 @@ def upload_erpnext_item(doc, method=None):
     product = Product.find(product_id)
     is_successful = False
     variant_to_update = None
-
+    
     if product:
-      # Save product-level fields first (title, category, etc.)
       map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
-      is_successful = product.save()
-      product.reload() # Refresh the product object to get latest variant data
 
       if not item.variant_of:
-        is_successful = update_default_variant_properties( # This function now handles the save
+        update_default_variant_properties(
           product,
           is_stock_item=template_item.is_stock_item,
           sku=item.item_code, # This will be modified on the live object, not in the log
           price=item.get(ITEM_SELLING_RATE_FIELD),
           weight=item.weight_per_unit,
-          weight_unit=get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else 'kg'
+          weight_unit=get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else None
         )
       else:
         # This is an update for an existing variant. Find it and update its properties.
@@ -547,7 +544,7 @@ def upload_erpnext_item(doc, method=None):
             is_successful = variant_to_update.save()
             create_shopify_log(message=f"Updating variant {item.name}", status="Info", request_data=variant_to_update.to_dict())
 
-    write_upload_log(status=is_successful, product=variant_to_update or product, item=item, action="Updated")
+    # write_upload_log(status=is_successful, product=variant_to_update, item=item, action="Updated")
 
 
 def map_erpnext_variant_to_shopify_variant(shopify_product: Product, erpnext_item, variant_attributes):
@@ -637,7 +634,7 @@ def update_default_variant_properties(
   weight: float | None = None,
   weight_unit: str | None = None,
 ):
-  """Shopify creates a default variant upon saving the product.
+  """Shopify creates default variant upon saving the product.
 
   Some item properties are supposed to be updated on the default variant.
   Input: saved shopify_product, sku and price
@@ -657,7 +654,7 @@ def update_default_variant_properties(
   if weight_unit is not None:
     default_variant.weight_unit = weight_unit
 
-  return default_variant.save()
+  default_variant.save()
 
 def write_upload_log(status: bool, product: Product, item, action="Created") -> None:
   if not status:
