@@ -440,12 +440,15 @@ def upload_erpnext_item(doc, method=None):
     is_successful = product.save()
 
     if is_successful:
+      # Determine the weight to be synced to Shopify
+      weight_to_sync = max(template_item.weight_per_unit or 0, template_item.volumetric_weight or 0)
 
       update_default_variant_properties(
         product,
         sku=template_item.item_code,
         is_stock_item=template_item.is_stock_item,
-        weight=template_item.weight_per_unit,
+        price=item.get(ITEM_SELLING_RATE_FIELD),
+        weight=weight_to_sync,
         weight_unit=get_shopify_weight_uom(erpnext_weight_uom=template_item.weight_uom) if template_item.weight_uom else None
       )
 
@@ -515,12 +518,13 @@ def upload_erpnext_item(doc, method=None):
       product.reload() # Refresh the product object to get latest variant data
 
       if not item.variant_of:
+        weight_to_sync = max(item.weight_per_unit or 0, item.volumetric_weight or 0)
         is_successful = update_default_variant_properties( # This function now handles the save
           product,
           is_stock_item=template_item.is_stock_item,
           sku=item.item_code, # This will be modified on the live object, not in the log
           price=item.get(ITEM_SELLING_RATE_FIELD),
-          weight=item.weight_per_unit,
+          weight=weight_to_sync,
           weight_unit=get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else 'kg'
         )
       else:
@@ -540,8 +544,9 @@ def upload_erpnext_item(doc, method=None):
                     break
 
         if variant_to_update:
+            weight_to_sync = max(item.weight_per_unit or 0, item.volumetric_weight or 0)
             variant_to_update.price = item.get(ITEM_SELLING_RATE_FIELD)
-            variant_to_update.weight = item.weight_per_unit
+            variant_to_update.weight = weight_to_sync
             variant_to_update.weight_unit = get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else 'kg'
             # Explicitly save the variant to ensure changes are pushed to Shopify
             is_successful = variant_to_update.save()
