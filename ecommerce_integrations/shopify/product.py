@@ -18,6 +18,7 @@ from ecommerce_integrations.shopify.constants import (
   SUPPLIER_ID_FIELD,
   WEIGHT_TO_ERPNEXT_UOM_MAP,
 )
+from ecommerce_integrations.shopify.collection import add_product_to_collections_from_breadcrumb
 from ecommerce_integrations.shopify.utils import create_shopify_log
 
 
@@ -505,6 +506,9 @@ def upload_erpnext_item(doc, method=None):
         )
         ecom_item.insert()
 
+      # Add product to collections based on breadcrumb
+      add_product_to_collections_from_breadcrumb(product.id, item)
+
     write_upload_log(status=is_successful, product=product, item=item)
   elif setting.update_shopify_item_on_update:
     product = Product.find(product_id)
@@ -515,6 +519,10 @@ def upload_erpnext_item(doc, method=None):
       # Save product-level fields first (title, category, etc.)
       map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
       is_successful = product.save()
+      if is_successful:
+        # Add product to collections based on breadcrumb
+        add_product_to_collections_from_breadcrumb(product.id, item)
+
       product.reload() # Refresh the product object to get latest variant data
 
       if not item.variant_of:
@@ -552,7 +560,7 @@ def upload_erpnext_item(doc, method=None):
             is_successful = variant_to_update.save()
             create_shopify_log(message=f"Updating variant {item.name}", status="Info", request_data=variant_to_update.to_dict())
 
-    write_upload_log(status=is_successful, product=variant_to_update or product, item=item, action="Updated")
+    write_upload_log(status=is_successful, product=product, item=item, action="Updated")
 
 
 def map_erpnext_variant_to_shopify_variant(shopify_product: Product, erpnext_item, variant_attributes):
@@ -701,7 +709,7 @@ def upload_product_image_to_shopify(product_id, url):
 
         headers = get_shopify_headers(setting)
         api_version = "2024-10"
-        url = f"https://{setting.shopify_url}.myshopify.com/admin/api/{api_version}/products/{product_id}/images.json"
+        url = f"https://{setting.shopify_url}/admin/api/{api_version}/products/{product_id}/images.json"
 
         payload = {"image": {"src": url}}
         create_shopify_log(message=f"Uploading image to product {product_id}", status="Info", request_data=payload)
@@ -711,8 +719,8 @@ def upload_product_image_to_shopify(product_id, url):
         return response.json()
 
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
+        frappe.log_error(f"An HTTP error occurred: {http_err}")
         return {"error": f"HTTP Error: {http_err}", "response_text": response.text}
     except Exception as err:
-        print(f"An error occurred: {err}")
+        frappe.log_error(f"An HTTP error occurred: {http_err}")
         return {"error": f"An unexpected error occurred: {err}"}
