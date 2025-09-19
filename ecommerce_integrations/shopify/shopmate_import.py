@@ -422,7 +422,7 @@ def _create_standalone_item(product, variant, integration):
     if supplier_doc_name:
         supplier_items.append({
             "supplier": supplier_doc_name,
-            "custom_price": variant.get("sale_price"),
+            "custom_price": variant.get("cost_price"),
             "custom_product_url": product.get("vendor_url"),
             "main_vendor": 1
         })
