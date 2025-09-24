@@ -437,10 +437,20 @@ def upload_erpnext_item(doc, method=None):
 
     map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
 
-    create_shopify_log(message=f"Creating product {template_item.name}", status="Info", request_data=product.to_dict())
+    create_shopify_log(
+        message=f"Creating product in Shopify: {template_item.name}",
+        status="Info",
+        request_data=product.to_dict(),
+    )
     is_successful = product.save()
 
     if is_successful:
+      create_shopify_log(
+          message=f"Successfully created product in Shopify: {product.id}",
+          status="Success",
+          exception=product.errors.full_messages() or None,
+          response_data=product.to_dict(),
+      )
       # Determine the weight to be synced to Shopify
       weight_to_sync = max(template_item.weight_per_unit or 0, template_item.volumetric_weight or 0)
 
@@ -455,8 +465,7 @@ def upload_erpnext_item(doc, method=None):
 
 # TODO: Fallback when there is no main vendor in Item Supplier, use the first Item Supplier in upload_erpnext_item as vendor for the shopify product
 
-      # After updating the variant, we need to find the product again to get the updated variant data
-      product = Product.find(product.id)
+      # The product object is already up-to-date. Reloading it is redundant and can cause issues with stale data.
 
       # Re-map all properties, including attached images, before the final save.
       map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
@@ -488,8 +497,18 @@ def upload_erpnext_item(doc, method=None):
             )
         product.variants.append(Variant(variant_attributes))
 
-      create_shopify_log(message=f"Updating product variants for {template_item.name}", status="Info", request_data=product.to_dict())
+      create_shopify_log(
+          message=f"Updating product with variants in Shopify: {template_item.name}",
+          status="Info",
+          request_data=product.to_dict(),
+      )
       is_successful = product.save()  # push variant
+      create_shopify_log(
+          message=f"Successfully updated product with variants in Shopify: {product.id}",
+          status="Success" if is_successful else "Error",
+          exception=product.errors.full_messages() or None,
+          response_data=product.to_dict(),
+      )
       ecom_items = list(set([item, template_item]))
       for d in ecom_items:
         ecom_item = frappe.get_doc(
@@ -518,12 +537,23 @@ def upload_erpnext_item(doc, method=None):
     if product:
       # Save product-level fields first (title, category, etc.)
       map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
+      create_shopify_log(
+          message=f"Updating product in Shopify: {product.id}",
+          status="Info",
+          request_data=product.to_dict(),
+      )
       is_successful = product.save()
+      create_shopify_log(
+          message=f"Product update response from Shopify: {product.id}",
+          status="Success" if is_successful else "Error",
+          exception=product.errors.full_messages() or None,
+          response_data=product.to_dict(),
+      )
       if is_successful:
         # Add product to collections based on breadcrumb
         add_product_to_collections_from_breadcrumb(product.id, item)
 
-      product.reload() # Refresh the product object to get latest variant data
+      product.reload() # This is redundant and reverts the title in the log
 
       if not item.variant_of:
         weight_to_sync = max(item.weight_per_unit or 0, item.volumetric_weight or 0)
@@ -556,9 +586,19 @@ def upload_erpnext_item(doc, method=None):
             variant_to_update.price = item.get(ITEM_SELLING_RATE_FIELD)
             variant_to_update.weight = weight_to_sync
             variant_to_update.weight_unit = get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else 'kg'
+            create_shopify_log(
+                message=f"Updating variant {item.name} in Shopify",
+                status="Info",
+                request_data=variant_to_update.to_dict(),
+            )
             # Explicitly save the variant to ensure changes are pushed to Shopify
             is_successful = variant_to_update.save()
-            create_shopify_log(message=f"Updating variant {item.name}", status="Info", request_data=variant_to_update.to_dict())
+            create_shopify_log(
+                message=f"Variant update response for {item.name}",
+                status="Success" if is_successful else "Error",
+                exception=variant_to_update.errors.full_messages() or None,
+                response_data=variant_to_update.to_dict(),
+            )
 
     write_upload_log(status=is_successful, product=product, item=item, action="Updated")
 
@@ -602,7 +642,7 @@ def map_erpnext_item_to_shopify(shopify_product: Product, erpnext_item):
   setter = setattr if isinstance(shopify_product, Product) else lambda obj, key, val: obj.setdefault(key, val)
 
   setter(shopify_product, 'title', erpnext_item.item_name)
-  setter(shopify_product, 'body_html', erpnext_item.description)
+  setter(shopify_product, 'body_html', erpnext_item.raw_html_description)
   setter(shopify_product, 'product_type', erpnext_item.item_group)
 
   main_supplier_details = frappe.db.get_value("Item Supplier", {"parent": erpnext_item.name, "main_vendor": 1}, ["supplier", "custom_price"], as_dict=1)
@@ -670,7 +710,19 @@ def update_default_variant_properties(
   if weight_unit is not None:
     default_variant.weight_unit = weight_unit
 
-  return default_variant.save()
+  create_shopify_log(
+      message=f"Updating default variant for product: {shopify_product.id}",
+      status="Info",
+      request_data=default_variant.to_dict(),
+  )
+  is_successful = default_variant.save()
+  create_shopify_log(
+      message=f"Response from default variant update for product: {shopify_product.id}",
+      status="Success" if is_successful else "Error",
+      exception=default_variant.errors.full_messages() or None,
+      response_data=default_variant.to_dict(),
+  )
+  return is_successful
 
 def write_upload_log(status: bool, product: Product, item, action="Created") -> None:
   if not status:
@@ -680,14 +732,15 @@ def write_upload_log(status: bool, product: Product, item, action="Created") -> 
 
     create_shopify_log(
       status="Error",
-      request_data=product.to_dict(),
+      response_data=product.to_dict(),
+      exception=msg,
       message=msg,
       method="upload_erpnext_item",
     )
   else:
     create_shopify_log(
       status="Success",
-      request_data=product.to_dict(),
+      response_data=product.to_dict(),
       message=f"{action} Item: {item.name}, shopify product: {product.id}",
       method="upload_erpnext_item",
     )
