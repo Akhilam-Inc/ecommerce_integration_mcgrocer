@@ -11,7 +11,7 @@ def upload_metafield( product_id, key, value, type):
     setting = frappe.get_doc(SETTING_DOCTYPE)
     headers = get_shopify_headers(setting)
     api_version = "2024-10"
-    url = f"https://{setting.shopify_url}/admin/api/{api_version}/metafields.json"
+    url = f"https://{setting.shopify_url}/admin/api/{api_version}/products/{product_id}/metafields.json"
 
     payload = {
         "metafield": {
