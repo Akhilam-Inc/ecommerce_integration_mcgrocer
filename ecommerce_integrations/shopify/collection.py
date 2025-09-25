@@ -5,7 +5,7 @@ import ast
 import time
 
 from ecommerce_integrations.shopify.constants import SETTING_DOCTYPE
-from ecommerce_integrations.shopify.utils import create_shopify_log
+from ecommerce_integrations.shopify.utils import create_shopify_log, get_shopify_headers
 
 def find_collection_by_title(store_name, access_token, title):
 	# try:
@@ -48,17 +48,6 @@ def find_collection_by_title(store_name, access_token, title):
 	# except Exception as e:
 	# 	return frappe.log_error(message=str(e), title="Shopify API Error")
 
-
-
-def get_shopify_headers(setting):
-	"""
-	Generate headers required for Shopify API requests.
-	"""
-	return {
-		"Content-Type": "application/json",
-		"Accept": "application/json",
-		"X-Shopify-Access-Token": setting.get_password("password"),
-	}
 
 
 def add_product_to_collection(shopify_product_id, collection_id):

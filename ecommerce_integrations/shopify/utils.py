@@ -17,6 +17,26 @@ from ecommerce_integrations.shopify.constants import (
 	SETTING_DOCTYPE,
 )
 
+def get_shopify_headers(setting):
+    """
+    Generate headers required for Shopify API requests.
+
+    Args:
+        setting (object): An object that provides access to configuration settings,
+                          including a method `get_password` to retrieve the Shopify
+                          access token.
+
+    Returns:
+        dict: A dictionary containing the headers:
+              - "Content-Type": Specifies the media type as JSON.
+              - "Accept": Specifies the expected response format as JSON.
+              - "X-Shopify-Access-Token": The access token for authenticating with Shopify.
+    """
+    return {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Shopify-Access-Token": setting.get_password("password")
+    }
 
 def json_serializer(obj):
 	"""JSON serializer for objects not serializable by default json code"""

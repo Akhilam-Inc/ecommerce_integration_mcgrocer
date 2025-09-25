@@ -18,6 +18,7 @@ from ecommerce_integrations.shopify.constants import (
   SUPPLIER_ID_FIELD,
   WEIGHT_TO_ERPNEXT_UOM_MAP,
 )
+from ecommerce_integrations.shopify.meta_fields import add_ai_summary, add_ai_title
 from ecommerce_integrations.shopify.collection import add_product_to_collections_from_breadcrumb
 from ecommerce_integrations.shopify.utils import create_shopify_log
 
@@ -528,6 +529,11 @@ def upload_erpnext_item(doc, method=None):
       # Add product to collections based on breadcrumb
       add_product_to_collections_from_breadcrumb(product.id, item)
 
+      # Add AI summary and title
+      if item.original_description:
+        add_ai_summary(product.id, item.original_description)
+      if item.original_name:
+        add_ai_title(product.id, item.original_name)
     write_upload_log(status=is_successful, product=product, item=item)
   elif setting.update_shopify_item_on_update:
     product = Product.find(product_id)
@@ -552,6 +558,12 @@ def upload_erpnext_item(doc, method=None):
       if is_successful:
         # Add product to collections based on breadcrumb
         add_product_to_collections_from_breadcrumb(product.id, item)
+
+        # Add AI summary and title
+        if item.original_description:
+          add_ai_summary(product.id, item.original_description)
+        if item.original_name:
+          add_ai_title(product.id, item.original_name)
 
       product.reload() # This is redundant and reverts the title in the log
 
