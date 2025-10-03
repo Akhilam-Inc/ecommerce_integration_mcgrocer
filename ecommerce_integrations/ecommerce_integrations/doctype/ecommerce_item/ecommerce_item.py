@@ -170,4 +170,4 @@ def create_ecommerce_item(
 		}
 	)
 
-	return ecommerce_item.insert()
+	ecommerce_item.insert()
