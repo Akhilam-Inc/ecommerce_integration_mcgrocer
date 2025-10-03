@@ -18,6 +18,7 @@ from ecommerce_integrations.shopify.constants import (
   SUPPLIER_ID_FIELD,
   WEIGHT_TO_ERPNEXT_UOM_MAP,
 )
+from ecommerce_integrations.shopify.custom_inventory import update_inventory
 from ecommerce_integrations.shopify.meta_fields import add_ai_summary, add_ai_title
 from ecommerce_integrations.shopify.collection import add_product_to_collections_from_breadcrumb
 from ecommerce_integrations.shopify.utils import create_shopify_log
@@ -605,6 +606,7 @@ def upload_erpnext_item(doc, method=None):
             )
             # Explicitly save the variant to ensure changes are pushed to Shopify
             is_successful = variant_to_update.save()
+            update_inventory(variant_to_update.id, 1000)
             create_shopify_log(
                 message=f"Variant update response for {item.name}",
                 status="Success" if is_successful else "Error",
@@ -728,6 +730,7 @@ def update_default_variant_properties(
       request_data=default_variant.to_dict(),
   )
   is_successful = default_variant.save()
+  update_inventory(default_variant.id, 1000)
   create_shopify_log(
       message=f"Response from default variant update for product: {shopify_product.id}",
       status="Success" if is_successful else "Error",
