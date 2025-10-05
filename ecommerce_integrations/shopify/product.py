@@ -687,23 +687,22 @@ def map_erpnext_item_to_shopify(shopify_product: Product, erpnext_item):
   else:
     erpnext_item.main_vendor_price = None
 
-  if update_flags.get('update_images') and not is_new_product:
-    images = []
-    if erpnext_item.image:
-      images.append({"src": frappe.utils.get_url(erpnext_item.image)})
+  images = []
+  if erpnext_item.image:
+    images.append({"src": frappe.utils.get_url(erpnext_item.image)})
 
-    # Get attached images
-    attached_files = frappe.get_all(
-      "File",
-      filters={"attached_to_doctype": "Item", "attached_to_name": erpnext_item.name, "is_folder": 0},
-      fields=["file_url"],
-    )
-    for f in attached_files:
-      if f.file_url not in [img["src"] for img in images]:
-        images.append({"src": frappe.utils.get_url(f.file_url)})
+  # Get attached images
+  attached_files = frappe.get_all(
+    "File",
+    filters={"attached_to_doctype": "Item", "attached_to_name": erpnext_item.name, "is_folder": 0},
+    fields=["file_url"],
+  )
+  for f in attached_files:
+    if f.file_url not in [img["src"] for img in images]:
+      images.append({"src": frappe.utils.get_url(f.file_url)})
 
-    if images:
-      setter(shopify_product, 'images', images)
+  if images:
+    setter(shopify_product, 'images', images)
 
   if erpnext_item.disabled:
     setter(shopify_product, 'status', "draft")
