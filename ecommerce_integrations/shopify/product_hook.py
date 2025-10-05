@@ -105,6 +105,4 @@ def set_shopify_update_flags(doc, method=None):
             flags['update_metafields'] = True
             break
     
-    # Store flags as JSON in custom field
-    frappe.log_error(title="update_flags", message=json.dumps(flags))
     doc.update_flags = json.dumps(flags)
