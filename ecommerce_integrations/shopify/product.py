@@ -587,7 +587,7 @@ def upload_erpnext_item(doc, method=None):
 
       product.reload()
 
-      if not item.variant_of and update_flags.get('update_default_variant'):
+      if not item.variant_of:
         weight_to_sync = max(item.weight_per_unit or 0, item.volumetric_weight or 0)
         is_successful = update_default_variant_properties( # This function now handles the save
           product,
@@ -595,9 +595,10 @@ def upload_erpnext_item(doc, method=None):
           sku=item.item_code, # This will be modified on the live object, not in the log
           price=item.get(ITEM_SELLING_RATE_FIELD),
           weight=weight_to_sync,
+          
           weight_unit=get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else 'kg'
         )
-      elif item.variant_of and update_flags.get('update_variant'):
+      elif item.variant_of:
         # This is an update for an existing variant. Find it and update its properties.
         ecom_variant_id = frappe.db.get_value("Ecommerce Item", {"erpnext_item_code": item.name}, "variant_id")
         if ecom_variant_id:
