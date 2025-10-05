@@ -41,9 +41,9 @@ class EcommerceItem(Document):
 			unique_sku = {"integration": self.integration, "sku": self.sku}
 			filters.append(unique_sku)
 
-		for filter in filters:
-			if frappe.db.exists("Ecommerce Item", filter):
-				frappe.throw(_("Ecommerce Item already exists"), exc=frappe.DuplicateEntryError)
+		# for filter in filters:
+		if frappe.db.exists("Ecommerce Item", filters):
+			frappe.throw(_(f"Ecommerce Item already exists {filter}"), exc=frappe.DuplicateEntryError)
 
 	def set_defaults(self):
 		if not self.inventory_synced_on:

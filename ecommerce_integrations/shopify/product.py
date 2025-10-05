@@ -390,7 +390,7 @@ def get_item_code(shopify_item):
   if item:
     return item.item_code
 
-
+update_flags = {}
 @temp_shopify_session
 def upload_erpnext_item(doc, method=None):
   """This hook is called when inserting new or updating existing `Item`.
@@ -425,11 +425,13 @@ def upload_erpnext_item(doc, method=None):
   if item.variant_of:
     template_item = frappe.get_doc("Item", item.variant_of)
 
+  import json
   product_id = frappe.db.get_value(
     "Ecommerce Item",
     {"erpnext_item_code": template_item.name, "integration": MODULE_NAME},
     "integration_item_code",
   )
+  global is_new_product
   is_new_product = not bool(product_id)
 
   if is_new_product:
@@ -537,6 +539,20 @@ def upload_erpnext_item(doc, method=None):
         add_ai_title(product.id, item.original_name)
     write_upload_log(status=is_successful, product=product, item=item)
   elif setting.update_shopify_item_on_update:
+    try:
+      global update_flags
+      update_flags = json.loads(item.update_flags or '{}')
+    except (json.JSONDecodeError, TypeError):
+      # Fallback to default if JSON is invalid
+      update_flags = {
+        'update_product': True,
+        'update_default_variant': True,
+        'update_variant': True,
+        'update_collections': True,
+        'update_metafields': True,
+        'update_images': True,
+      }
+
     product = Product.find(product_id)
     is_successful = False
     variant_to_update = None
@@ -556,19 +572,22 @@ def upload_erpnext_item(doc, method=None):
           exception=product.errors.full_messages() or None,
           response_data=product.to_dict(),
       )
+
       if is_successful:
-        # Add product to collections based on breadcrumb
-        add_product_to_collections_from_breadcrumb(product.id, item)
+        # Only update collections if flag is set
+        if update_flags.get('update_collections'):
+          add_product_to_collections_from_breadcrumb(product.id, item)
+        # Only update metafields if flag is set
+        if update_flags.get('update_metafields'):
+          # Add AI summary and title
+          if item.original_description:
+            add_ai_summary(product.id, item.original_description)
+          if item.original_name:
+            add_ai_title(product.id, item.original_name)
 
-        # Add AI summary and title
-        if item.original_description:
-          add_ai_summary(product.id, item.original_description)
-        if item.original_name:
-          add_ai_title(product.id, item.original_name)
+      product.reload()
 
-      product.reload() # This is redundant and reverts the title in the log
-
-      if not item.variant_of:
+      if not item.variant_of and update_flags.get('update_default_variant'):
         weight_to_sync = max(item.weight_per_unit or 0, item.volumetric_weight or 0)
         is_successful = update_default_variant_properties( # This function now handles the save
           product,
@@ -578,7 +597,7 @@ def upload_erpnext_item(doc, method=None):
           weight=weight_to_sync,
           weight_unit=get_shopify_weight_uom(erpnext_weight_uom=item.weight_uom) if item.weight_uom else 'kg'
         )
-      else:
+      elif item.variant_of and update_flags.get('update_variant'):
         # This is an update for an existing variant. Find it and update its properties.
         ecom_variant_id = frappe.db.get_value("Ecommerce Item", {"erpnext_item_code": item.name}, "variant_id")
         if ecom_variant_id:
@@ -667,22 +686,23 @@ def map_erpnext_item_to_shopify(shopify_product: Product, erpnext_item):
   else:
     erpnext_item.main_vendor_price = None
 
-  images = []
-  if erpnext_item.image:
-    images.append({"src": frappe.utils.get_url(erpnext_item.image)})
+  if update_flags.get('update_images') and not is_new_product:
+    images = []
+    if erpnext_item.image:
+      images.append({"src": frappe.utils.get_url(erpnext_item.image)})
 
-  # Get attached images
-  attached_files = frappe.get_all(
-    "File",
-    filters={"attached_to_doctype": "Item", "attached_to_name": erpnext_item.name, "is_folder": 0},
-    fields=["file_url"],
-  )
-  for f in attached_files:
-    if f.file_url not in [img["src"] for img in images]:
-      images.append({"src": frappe.utils.get_url(f.file_url)})
+    # Get attached images
+    attached_files = frappe.get_all(
+      "File",
+      filters={"attached_to_doctype": "Item", "attached_to_name": erpnext_item.name, "is_folder": 0},
+      fields=["file_url"],
+    )
+    for f in attached_files:
+      if f.file_url not in [img["src"] for img in images]:
+        images.append({"src": frappe.utils.get_url(f.file_url)})
 
-  if images:
-    setter(shopify_product, 'images', images)
+    if images:
+      setter(shopify_product, 'images', images)
 
   if erpnext_item.disabled:
     setter(shopify_product, 'status', "draft")

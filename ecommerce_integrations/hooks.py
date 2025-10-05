@@ -107,6 +107,7 @@ before_uninstall = "ecommerce_integrations.uninstall.before_uninstall"
 
 doc_events = {
 	"Item": {
+		"before_save": "ecommerce_integrations.shopify.product_hook.set_shopify_update_flags",
 		"after_insert": "ecommerce_integrations.shopify.product.upload_erpnext_item",
 		"on_update": "ecommerce_integrations.shopify.product.upload_erpnext_item",
 		"validate": [
