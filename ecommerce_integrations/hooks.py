@@ -221,3 +221,12 @@ before_tests = "ecommerce_integrations.utils.before_test.before_tests"
 default_log_clearing_doctypes = {
 	"Ecommerce Integration Log": 120,
 }
+
+fixtures = [
+    {
+        "doctype": "Custom Field",
+        "filters": [
+            ["name", "=", "Item-custom_update_flags"]
+        ]
+    }
+]
