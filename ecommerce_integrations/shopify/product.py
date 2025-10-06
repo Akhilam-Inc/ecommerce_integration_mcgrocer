@@ -22,6 +22,7 @@ from ecommerce_integrations.shopify.custom_inventory import update_inventory
 from ecommerce_integrations.shopify.meta_fields import add_ai_summary, add_ai_title
 from ecommerce_integrations.shopify.collection import add_product_to_collections_from_breadcrumb
 from ecommerce_integrations.shopify.utils import create_shopify_log
+from ecommerce_integrations.shopify.shopify_product_utils import find_or_create_product
 
 
 class ShopifyProduct:
@@ -553,7 +554,8 @@ def upload_erpnext_item(doc, method=None):
         'update_images': True,
       }
 
-    product = Product.find(product_id)
+    # Replace the existing Product.find() call with find_or_create_product()
+    product = find_or_create_product(product_id, template_item)
     is_successful = False
     variant_to_update = None
 
