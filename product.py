@@ -466,14 +466,14 @@ def upload_erpnext_item(doc, method=None):
         product.save()
 
         create_shopify_log(
-            message=f"✅ Overwrote {len(metafields)} metafields successfully for {item.item_code}",
+            message=f"✅✅ Overwrote {len(metafields)} metafields successfully for {item.item_code}",
             status= "Success", 
             response_data=products.to_dict(),
         )
          
     except Exception as e:
         create_shopify_log(
-            message=f"❌ Failed to overwrite metafields for {item.item_code}. Error: {e}",
+            message=f"❌❌ Failed to overwrite metafields for {item.item_code}. Error: {e}",
             status="Error",
             exception=e,
             request_data={"metafields": metafields},
@@ -484,8 +484,6 @@ def upload_erpnext_item(doc, method=None):
         add_ai_summary(product.id, item.original_description)
     if item.original_name:
         add_ai_title(product.id, item.original_name)
-
-
 
 
     create_shopify_log(
