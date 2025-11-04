@@ -479,7 +479,7 @@ def upload_erpnext_item(doc, method=None):
             request_data={"metafields": metafields},
        )
             
-    # (continue existing logic)
+    # (continue existing logic))
     if item.original_description:
         add_ai_summary(product.id, item.original_description)
     if item.original_name:
